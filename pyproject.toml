@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bounce"
+version = "0.1.0"
+description = "Monte Carlo simulation of particles bouncing and sticking on a floor"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [
+    { name = "Javad Yousefian" },
+    { name = "Alexandra VonHaven" },
+    { name = "Kevin Geumhan" },
+]
+dependencies = ["numpy", "scipy", "matplotlib"]
+
+[project.optional-dependencies]
+dev = ["pytest", "black"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.black]
+line-length = 88
