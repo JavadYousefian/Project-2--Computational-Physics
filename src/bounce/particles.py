@@ -135,7 +135,7 @@ class Particles:
         elif method == "exact":
             r_new, v_new = exact_flight(r, v, dt, self.g, self.gamma, self.m)
         else:
-            raise ValueError("method must be solve_ivp or exact")
+            print("method must be solve_ivp or exact")
 
         self.r[ind] = r_new
         self.v[ind] = v_new
