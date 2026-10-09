@@ -2,7 +2,7 @@
 # and moves them in time with solve_ivp.
 
 # Equation of motion during the flight (gravity + linear air drag):
-# m d^2r/dt^2 = -m g z_hat - gamma dr/dt
+#  m d^2r/dt^2 = -m g z_hat - gamma dr/dt
 # We write it as two first order equations:
 # dr/dt = v
 # dv/dt = -g z_hat - (gamma / m) v
@@ -12,15 +12,41 @@ import numpy as np
 from scipy.integrate import solve_ivp
 
 
+def exact_flight(r0, v0, t, g=1.0, gamma=0.0, m=1.0):
+    # Exact solution of the equation of motion (the floor is not used here).
+    # We use it to test solve_ivp, and as a second way to move the particles.
+    
+    # Without drag (gamma = 0) it is normal projectile motion:
+    # r(t) = r0 + v0 t - 1/2 g t^2 z_hat
+    # v(t) = v0 - g t z_hat
+    # With drag we use k = gamma / m and the terminal velocity v_t = (0, 0, g / k):
+    # v(t) = -v_t + (v0 + v_t) exp(-k t)
+    # r(t) = r0 - v_t t + (v0 + v_t) (1 - exp(-k t)) / k
+    # After a long time exp(-k t) -> 0, so v -> -v_t: the particle falls with
+    # the terminal velocity m g / gamma.
+    g_vec = np.array([0.0, 0.0, g])
+    if gamma == 0:
+        r = r0 + v0 * t - 0.5 * g_vec * t**2
+        v = v0 - g_vec * t
+        return r, v
+
+    k = gamma / m
+    vt = g_vec / k
+    v = -vt + (v0 + vt) * np.exp(-k * t)
+    # 1 - exp(-k t) = -expm1(-k t), expm1 is more precise when k t is small
+    r = r0 - vt * t - (v0 + vt) * np.expm1(-k * t) / k
+    return r, v
+
+
 class Particles:
     # All particles of the simulation. The particles do not interact with each
     # other, so we keep all of them in numpy arrays and move them together.
     
-    # pos : array (N, 3), start positions
-    # vel : array (N, 3), start velocities
-    # gamma : drag coefficient (gamma = 0 means no air drag)
-    # g : gravity, in the -z direction
-    # m : mass
+    # pos: array (N, 3), start positions
+    # vel: array (N, 3), start velocities
+    # gamma: drag coefficient (gamma = 0 means no air drag)
+    # g: gravity, in the -z direction
+    # m: mass
 
     def __init__(self, pos, vel, gamma=0.0, g=1.0, m=1.0):
         self.r = np.array(pos, dtype=float)
@@ -80,26 +106,36 @@ class Particles:
         a[2::3] -= self.g
         return np.concatenate((v, a))
 
-    def move(self, dt, rtol=1e-8, atol=1e-10):
-        # move all flying particles one time step dt with solve_ivp (RK45)
+    def move(self, dt, method="solve_ivp", rtol=1e-8, atol=1e-10):
+        # move all flying particles one time step dt
+        # method = "solve_ivp" (RK45) or "exact" (the formulas in exact_flight)
         # rtol, atol are the tolerances of solve_ivp
         # the floor is not checked here, the Floor class does that after the step
         ind = self.flying()
         if len(ind) == 0:
             return
+        r = self.r[ind]
+        v = self.v[ind]
 
-        # put the positions and velocities of the flying particles in one array
-        y0 = np.concatenate((self.r[ind].ravel(), self.v[ind].ravel()))
-        # first_step=dt: solve_ivp tries the whole step at once. Without drag the
-        # path is a parabola and RK45 is exact for it, so one step is enough.
-        # With drag it makes smaller steps if the error is too big.
-        sol = solve_ivp(self.rhs, (0, dt), y0, rtol=rtol, atol=atol, first_step=dt)
-        if not sol.success:
-            raise RuntimeError(sol.message)
-        self.n_eval += sol.nfev
+        if method == "solve_ivp":
+            # put the positions and velocities of the flying particles in one array
+            y0 = np.concatenate((r.ravel(), v.ravel()))
+            # first_step=dt: solve_ivp tries the whole step at once. Without drag
+            # the path is a parabola and RK45 is exact for it, so one step is
+            # enough. With drag it makes smaller steps if the error is too big.
+            sol = solve_ivp(self.rhs, (0, dt), y0, rtol=rtol, atol=atol, first_step=dt)
+            if not sol.success:
+                raise RuntimeError(sol.message)
+            self.n_eval += sol.nfev
+            # values at the end of the step
+            y = sol.y[:, -1]
+            n = len(y) // 2
+            r_new = y[:n].reshape(-1, 3)
+            v_new = y[n:].reshape(-1, 3)
+        elif method == "exact":
+            r_new, v_new = exact_flight(r, v, dt, self.g, self.gamma, self.m)
+        else:
+            raise ValueError("method must be solve_ivp or exact")
 
-        # values at the end of the step, put them back in r and v
-        y = sol.y[:, -1]
-        n = len(y) // 2
-        self.r[ind] = y[:n].reshape(-1, 3)
-        self.v[ind] = y[n:].reshape(-1, 3)
+        self.r[ind] = r_new
+        self.v[ind] = v_new
