@@ -37,6 +37,12 @@ def test_mean_range_squared():
     assert np.isclose(analysis.mean_range_squared(), expected)
 
 
+def test_mean_range_error():
+    # the mean of tan(theta) for the cosine law, with an integral, is pi / 2
+    expected = cosine_mean(np.tan) * 0.1**2 / 12
+    assert np.isclose(analysis.mean_range_error(0.1), expected)
+
+
 def test_range_formula():
     # R = 2 v_h v_z / g must be where the exact flight comes back to z = 0,
     # which happens at the time t = 2 v_z / g
@@ -68,3 +74,31 @@ def test_checks_pass():
     checks += analysis.check_terminal_velocity(n=10)
     for check in checks:
         assert check["ok"], check
+
+
+def test_roundoff_is_tiny():
+    # without drag the energy error in a flight is only round-off, so tiny
+    rows = analysis.roundoff_study(steps_list=(10, 100), n=50)
+    for row in rows:
+        assert row["max dE/E"] < 1e-12
+
+
+def test_integration_follows_rtol():
+    # with one call the error gets smaller with rtol, with small steps dt the
+    # error is tiny for every rtol
+    rows = analysis.integration_study(rtols=(1e-3, 1e-8))
+    assert rows[1]["error (1 call)"] < rows[0]["error (1 call)"]
+    assert rows[0]["error (steps)"] < 1e-8
+
+
+def test_timestep_order():
+    # the errors from the time step must go like dt^2
+    rows, order_range, order_energy = analysis.timestep_study(
+        dts=(0.02, 0.01, 0.005), n=5000
+    )
+    # the energy loss is always small, so its mean is very stable
+    assert abs(order_energy - 2) < 0.1
+    for row in rows:
+        assert np.isclose(row["mean dE"], row["theory dE"], rtol=0.05)
+    # the range error is more noisy because of the very flat particles
+    assert abs(order_range - 2) < 0.3

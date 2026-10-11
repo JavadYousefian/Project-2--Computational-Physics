@@ -3,13 +3,14 @@
 
 import numpy as np
 from scipy import stats
+from scipy.integrate import solve_ivp
 
-from .particles import Particles
+from .particles import Particles, exact_flight
 from .simulation import run_simulation
 
-
+# ---------------------------------------------------------------------------
 # Theory formulas
-
+# ---------------------------------------------------------------------------
 
 
 def range_no_drag(v, g=1.0):
@@ -64,9 +65,25 @@ def max_energy_loss(dt, g=1.0, m=1.0):
     return m * g**2 * dt**2 / 8
 
 
+def mean_energy_loss(dt, g=1.0, m=1.0):
+    # The height of the particle at the interpolated time is g s (dt - s) / 2,
+    # where s is the time in the step when it lands. s can be anywhere in the
+    # step with the same chance, and the mean of s (dt - s) is dt^2 / 6, so the
+    # mean energy loss at one landing is m g^2 dt^2 / 12
+    return m * g**2 * dt**2 / 12
 
+
+def mean_range_error(dt, g=1.0):
+    # The interpolated landing is too early by (height / v_z), so the particle
+    # lands too short by v_h * height / v_z = tan(theta) g s (dt - s) / 2.
+    # The mean over s gives tan(theta) g dt^2 / 12, and for the cosine law the
+    # mean of tan(theta) is pi / 2, so the mean error is pi g dt^2 / 24
+    return np.pi * g * dt**2 / 24
+
+
+# ---------------------------------------------------------------------------
 # Validation checks
-
+# ---------------------------------------------------------------------------
 # Every check gives back a list of dicts with "name", "value", "target"
 # (as text) and "ok" (True or False).
 
@@ -249,8 +266,115 @@ def run_all_checks(n=10000, dt=0.01, seed=0):
     return checks
 
 
+# ---------------------------------------------------------------------------
+# Error studies
+# ---------------------------------------------------------------------------
 
+
+def roundoff_study(steps_list=(10, 100, 1000, 10000), t_total=2.0, n=1000, seed=0):
+    # Finite precision: the computer keeps only about 16 digits of a number, so
+    # every calculation has a tiny round-off error. Without drag RK45 is exact
+    # for the parabola, so if the energy changes in a flight without the floor
+    # it can only come from round-off. We fly the same time t_total with more
+    # and more steps and look how the energy error grows.
+    rows = []
+    for steps in steps_list:
+        p = Particles.from_source(n, rng=seed)
+        dt = t_total / steps
+        for i in range(steps):
+            p.move(dt)
+        change = np.abs(p.energy() - p.E0) / p.E0
+        rows.append(
+            {
+                "steps": steps,
+                "dt": dt,
+                "max dE/E": np.max(change),
+                "mean dE/E": np.mean(change),
+            }
+        )
+    return rows
+
+
+def integration_study(
+    rtols=(1e-3, 1e-4, 1e-6, 1e-8, 1e-10), gamma=0.5, t_total=5.0, dt=0.01, seed=0
+):
+    # Error of solve_ivp with drag, compared with the exact solution.
+    # "1 call": one solve_ivp call for the whole time, so the solver chooses
+    #           its own steps from rtol and the error should follow rtol
+    # "steps":  one call per dt like in our simulation. dt is so small that
+    #           the error is tiny for every rtol
+    # (we use atol = rtol / 1000)
+    start = Particles.from_source(1000, rng=seed, gamma=gamma)
+    r_exact, _ = exact_flight(start.r, start.v, t_total, gamma=gamma)
+    y0 = np.concatenate((start.r.ravel(), start.v.ravel()))
+    rows = []
+    for rtol in rtols:
+        atol = rtol / 1000
+        sol = solve_ivp(start.rhs, (0, t_total), y0, rtol=rtol, atol=atol)
+        r_one = sol.y[: len(y0) // 2, -1].reshape(-1, 3)
+
+        stepped = Particles(start.r, start.v, gamma=gamma)
+        for i in range(int(round(t_total / dt))):
+            stepped.move(dt, rtol=rtol, atol=atol)
+        rows.append(
+            {
+                "rtol": rtol,
+                "error (1 call)": np.max(np.abs(r_one - r_exact)),
+                "nfev (1 call)": sol.nfev,
+                "error (steps)": np.max(np.abs(stepped.r - r_exact)),
+                "nfev (steps)": stepped.n_eval,
+            }
+        )
+    return rows
+
+
+def timestep_study(dts=(0.04, 0.02, 0.01, 0.005, 0.0025), n=10000, seed=0):
+    # Error from the time step: we only find the landing at the end of a step,
+    # with linear interpolation. We use p_stick = 1 and no drag, so every
+    # particle lands once and the exact answer is R = v^2 sin(2 theta) / g.
+    # Both errors should go like dt^2 (order 2), see mean_range_error and
+    # mean_energy_loss for the theory
+    rows = []
+    for dt in dts:
+        res = run_simulation(n=n, dt=dt, p_stick=1.0, seed=seed)
+        error = np.abs(res["first_r"] - range_no_drag(res["v0"]))
+        loss = res["E0"] - res["E_end"]
+        rows.append(
+            {
+                "dt": dt,
+                "mean error": np.mean(error),
+                "theory": mean_range_error(dt),
+                "max error": np.max(error),
+                "mean dE": np.mean(loss),
+                "theory dE": mean_energy_loss(dt),
+            }
+        )
+    # fit a line to log(error) against log(dt), the slope is the order
+    log_dt = np.log(dts)
+    order_range = np.polyfit(log_dt, np.log([r["mean error"] for r in rows]), 1)[0]
+    order_energy = np.polyfit(log_dt, np.log([r["mean dE"] for r in rows]), 1)[0]
+    return rows, order_range, order_energy
+
+
+def print_table(rows):
+    # print a list of dicts as a simple table
+    keys = list(rows[0].keys())
+    width = max(12, max(len(key) for key in keys) + 1)
+    print("".join(f"{key:>{width}}" for key in keys))
+    for row in rows:
+        line = ""
+        for key in keys:
+            value = row[key]
+            if isinstance(value, (int, np.integer)):
+                line += f"{value:>{width}d}"
+            else:
+                line += f"{value:>{width}.3g}"
+        print(line)
+
+
+# ---------------------------------------------------------------------------
 # Plots (Kevin)
+# ---------------------------------------------------------------------------
 
 
 def plot_results(results, folder="figures"):

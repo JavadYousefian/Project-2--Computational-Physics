@@ -1,6 +1,7 @@
 # Command line program. After "pip install -e ." we can type in the terminal:
 #     bounce run          run one simulation and save the results
 #     bounce validate     compare the simulation with the theory
+#     bounce validate --studies    and also run the error studies
 # (bounce benchmark will come later)
 
 import argparse
@@ -35,6 +36,7 @@ def make_parser():
     validate.add_argument("--n", type=int, default=10000, help="number of particles")
     validate.add_argument("--dt", type=float, default=0.01, help="time step")
     validate.add_argument("--seed", type=int, default=0)
+    validate.add_argument("--studies", action="store_true", help="error studies")
     return parser
 
 
@@ -83,6 +85,17 @@ def do_validate(args):
             f" target {check['target']}"
         )
     print(f"{len(checks) - n_failed} of {len(checks)} checks passed")
+
+    if args.studies:
+        print("\nRound-off: flight without drag and without the floor")
+        analysis.print_table(analysis.roundoff_study(seed=args.seed))
+        print("\nsolve_ivp with drag compared with the exact solution")
+        analysis.print_table(analysis.integration_study(seed=args.seed))
+        print("\nTime step: first landing and energy loss")
+        rows, order_range, order_energy = analysis.timestep_study(seed=args.seed)
+        analysis.print_table(rows)
+        print(f"order: range {order_range:.2f}, energy {order_energy:.2f}")
+
     if n_failed > 0:
         return 1
     return 0
