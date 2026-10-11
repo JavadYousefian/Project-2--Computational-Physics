@@ -9,3 +9,8 @@ def test_run(tmp_path):
     filename = tmp_path / "res.npz"
     assert main(["run", "--n", "100", "--seed", "1", "--output", str(filename)]) == 0
     assert load_results(filename)["final_positions"].shape == (100, 3)
+
+
+def test_validate():
+    # "bounce validate" with fewer particles must run and all checks must pass
+    assert main(["validate", "--n", "1000"]) == 0

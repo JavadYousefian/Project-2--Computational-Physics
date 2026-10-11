@@ -1,12 +1,14 @@
 # Command line program. After "pip install -e ." we can type in the terminal:
-#     bounce run        run one simulation and save the results
-# (bounce validate and bounce benchmark will come later)
+#     bounce run          run one simulation and save the results
+#     bounce validate     compare the simulation with the theory
+# (bounce benchmark will come later)
 
 import argparse
 import time
 
 import numpy as np
 
+from . import analysis
 from .simulation import run_simulation, save_results
 
 
@@ -27,6 +29,12 @@ def make_parser():
     run.add_argument("--seed", type=int, default=None)
     run.add_argument("--method", default="solve_ivp", choices=["solve_ivp", "exact"])
     run.add_argument("--output", default="results.npz", help="output file")
+    run.add_argument("--plot", action="store_true", help="make the figures")
+
+    validate = commands.add_parser("validate", help="compare with the theory")
+    validate.add_argument("--n", type=int, default=10000, help="number of particles")
+    validate.add_argument("--dt", type=float, default=0.01, help="time step")
+    validate.add_argument("--seed", type=int, default=0)
     return parser
 
 
@@ -50,10 +58,39 @@ def do_run(args):
     print(f"mean number of bounces: {np.mean(results['bounces']):.3f}")
     print(f"mean final distance:    {np.mean(results['final_r']):.3f}")
     print(f"results saved in {args.output}")
+    if args.plot:
+        # the plots are Kevin's part, until they are ready we only print a note
+        try:
+            analysis.plot_results(results)
+        except NotImplementedError as error:
+            print("no figures:", error)
+    return 0
+
+
+def do_validate(args):
+    # run all checks and print one line for each check. We give back 1 if a
+    # check failed (and 0 if all passed), so it can also be used in scripts
+    checks = analysis.run_all_checks(args.n, args.dt, args.seed)
+    n_failed = 0
+    for check in checks:
+        if check["ok"]:
+            status = "PASS"
+        else:
+            status = "FAIL"
+            n_failed += 1
+        print(
+            f"[{status}] {check['name']:<40} {check['value']:<12.6g}"
+            f" target {check['target']}"
+        )
+    print(f"{len(checks) - n_failed} of {len(checks)} checks passed")
+    if n_failed > 0:
+        return 1
     return 0
 
 
 def main(argv=None):
     # this function runs when we type "bounce" in the terminal
     args = make_parser().parse_args(argv)
-    return do_run(args)
+    if args.command == "run":
+        return do_run(args)
+    return do_validate(args)
