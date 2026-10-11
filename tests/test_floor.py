@@ -37,19 +37,23 @@ def test_find_landed():
 
 
 def test_landing_point():
-    # z goes from 1 to -2 in the step, so z = 0 at 1/3 of the step
+    # z goes from 1 to -2 in the step, so z = 0 at 1/3 of the step.
+    # The velocity is interpolated with the same fraction 1/3
     floor = Floor(0.5, 0.5)
     r_old = np.array([[0.0, 0.0, 1.0]])
     r_new = np.array([[3.0, 1.0, -2.0]])
-    r = floor.landing_point(r_old, r_new)
+    v_old = np.array([[1.0, 0.0, 0.0]])
+    v_new = np.array([[4.0, 0.0, -3.0]])
+    r, v = floor.landing_point(r_old, v_old, r_new, v_new)
     assert np.allclose(r, [[1, 1 / 3, 0]])
+    assert np.allclose(v, [[2, 0, -1]])
 
 
 def test_all_stick():
     # with p_stick = 1 every particle sticks at the first landing
     p, rng = landed_particles()
     ind = np.arange(len(p))
-    Floor(1.0, 0.5).land(p, ind, p.r.copy(), rng)
+    Floor(1.0, 0.5).land(p, ind, p.r.copy(), p.v.copy(), rng)
     assert np.all(p.stuck)
     assert np.all(p.n_bounce == 0)
     assert np.all(p.first_land == p.r)
@@ -60,7 +64,7 @@ def test_specular():
     p, rng = landed_particles()
     v_in = p.v.copy()
     ind = np.arange(len(p))
-    Floor(1e-12, 1.0).land(p, ind, p.r.copy(), rng)  # p_stick almost 0
+    Floor(1e-12, 1.0).land(p, ind, p.r.copy(), v_in.copy(), rng)  # p_stick ~ 0
     assert np.allclose(p.v[:, :2], v_in[:, :2])
     assert np.allclose(p.v[:, 2], -v_in[:, 2])
     assert np.all(p.n_bounce == 1)
@@ -71,7 +75,7 @@ def test_diffuse():
     p, rng = landed_particles(2000)
     v_in = p.v.copy()
     ind = np.arange(len(p))
-    Floor(1e-12, 0.0).land(p, ind, p.r.copy(), rng)
+    Floor(1e-12, 0.0).land(p, ind, p.r.copy(), v_in.copy(), rng)
     speed_in = np.linalg.norm(v_in, axis=1)
     speed_out = np.linalg.norm(p.v, axis=1)
     assert np.allclose(speed_out, speed_in)
@@ -83,7 +87,7 @@ def test_specular_fraction():
     # them because only a specular bounce keeps v_x and v_y exactly the same.
     p, rng = landed_particles(20000)
     v_in = p.v.copy()
-    Floor(1e-12, 0.5).land(p, np.arange(len(p)), p.r.copy(), rng)
+    Floor(1e-12, 0.5).land(p, np.arange(len(p)), p.r.copy(), v_in.copy(), rng)
     same = np.all(p.v[:, :2] == v_in[:, :2], axis=1)
     assert abs(np.mean(same) - 0.5) < 0.02
 
@@ -93,8 +97,8 @@ def test_first_landing_saved_once():
     p, rng = landed_particles(10)
     floor = Floor(1e-12, 1.0)
     ind = np.arange(10)
-    floor.land(p, ind, np.ones((10, 3)), rng)
-    floor.land(p, ind, 2 * np.ones((10, 3)), rng)
+    floor.land(p, ind, np.ones((10, 3)), p.v.copy(), rng)
+    floor.land(p, ind, 2 * np.ones((10, 3)), -p.v, rng)
     assert np.all(p.first_land == 1)
     assert np.all(p.n_bounce == 2)
 
@@ -102,5 +106,5 @@ def test_first_landing_saved_once():
 def test_stick_probability():
     # with many particles the fraction that sticks must be close to p_stick
     p, rng = landed_particles(20000)
-    Floor(0.3, 0.5).land(p, np.arange(len(p)), p.r.copy(), rng)
+    Floor(0.3, 0.5).land(p, np.arange(len(p)), p.r.copy(), p.v.copy(), rng)
     assert abs(np.mean(p.stuck) - 0.3) < 0.02

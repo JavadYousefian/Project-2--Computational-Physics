@@ -1,10 +1,10 @@
 # Main loop of the simulation, like the pseudocode in our plan:
 #   make the particles at the source
 #   while some particles are still flying:
-#       save the old positions
+#       save the old positions and velocities
 #       move all flying particles one time step dt
 #       the particles with z < 0 landed during this step
-#       find their landing points with linear interpolation
+#       find where and how fast they hit the floor (linear interpolation)
 #       each landed particle sticks or bounces
 
 import numpy as np
@@ -54,9 +54,10 @@ def run_simulation(
         if n_steps >= max_steps:
             raise RuntimeError("particles are still flying after max_steps")
 
-        # save the old positions of the flying particles
+        # save the old positions and velocities of the flying particles
         ind = p.flying()
         r_old = p.r[ind]
+        v_old = p.v[ind]
 
         # move them one time step
         p.move(dt, method, rtol, atol)
@@ -64,10 +65,12 @@ def run_simulation(
         # the ones below the floor landed during this step
         landed = floor.find_landed(p.r[ind, 2])
         ind_land = ind[landed]
-        r_land = floor.landing_point(r_old[landed], p.r[ind_land])
+        r_land, v_land = floor.landing_point(
+            r_old[landed], v_old[landed], p.r[ind_land], p.v[ind_land]
+        )
 
         # each one sticks or bounces
-        floor.land(p, ind_land, r_land, rng)
+        floor.land(p, ind_land, r_land, v_land, rng)
 
         n_steps += 1
         particle_steps += len(ind)

@@ -46,6 +46,22 @@ def test_first_landing():
     assert np.mean(error) < 1e-4
 
 
+def test_specular_goes_straight():
+    # with only specular bounces and no drag all flights of a particle are the
+    # same, so it stops at r = (k + 1) R. We skip the very short flights
+    res = run_simulation(n=500, p_stick=0.3, p_specular=1.0, seed=4)
+    expected = (res["bounces"] + 1) * range_formula(res["v0"])
+    far = res["final_r"] > 0.1
+    assert np.allclose(res["final_r"][far], expected[far], rtol=1e-2)
+
+
+def test_energy_not_increasing():
+    # without drag the energy can not go up. It can go down a tiny bit at the
+    # landings because of the interpolation (see analysis.max_energy_loss)
+    res = run_simulation(n=300, seed=6)
+    assert np.all(res["E_end"] <= res["E0"] + 1e-12)
+
+
 def test_drag_makes_shorter():
     # air drag slows the particles down, so they land closer to the source
     free = run_simulation(n=500, p_stick=1.0, seed=7)
