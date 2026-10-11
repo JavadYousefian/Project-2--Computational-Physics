@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from bounce.simulation import run_simulation
+from bounce.simulation import load_results, run_simulation, save_results
 
 
 def range_formula(v):
@@ -69,3 +69,14 @@ def test_wrong_input():
         run_simulation(n=10, dt=0)
     with pytest.raises(RuntimeError):
         run_simulation(n=10, max_steps=3, seed=0)
+
+
+def test_save_and_load(tmp_path):
+    # saving and loading must give back the same results.
+    # tmp_path is a temporary folder that pytest makes for the test
+    res = run_simulation(n=100, seed=9)
+    filename = tmp_path / "res.npz"
+    save_results(res, filename)
+    loaded = load_results(filename)
+    assert np.all(loaded["final_positions"] == res["final_positions"])
+    assert int(loaded["n_steps"]) == res["n_steps"]

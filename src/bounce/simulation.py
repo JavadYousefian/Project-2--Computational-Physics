@@ -90,3 +90,15 @@ def run_simulation(
         "p_specular": p_specular,
         "gamma": p.gamma,
     }
+
+
+def save_results(results, filename):
+    # save the results dict in a .npz file (numpy's file format for arrays)
+    np.savez(filename, **results)
+
+
+def load_results(filename):
+    # load the results again from the .npz file. Single numbers like n_steps
+    # come back as numpy arrays with one value, use int(...) to get a number
+    with np.load(filename) as data:
+        return {key: data[key] for key in data.files}
