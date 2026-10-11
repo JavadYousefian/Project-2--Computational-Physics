@@ -10,7 +10,8 @@ from .sampling import cosine_directions
 class Floor:
     # p_stick    : probability that a particle sticks when it lands.
     # It must be > 0, otherwise the simulation never stops.
-    # p_specular : probability that a bounce is specular. Otherwise the bounce is diffuse.
+    # p_specular : probability that a bounce is specular.
+    # Otherwise the bounce is diffuse.
 
     def __init__(self, p_stick, p_specular):
         if p_stick <= 0 or p_stick > 1:
