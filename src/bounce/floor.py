@@ -9,9 +9,8 @@ from .sampling import cosine_directions
 
 class Floor:
     # p_stick    : probability that a particle sticks when it lands.
-    #              It must be > 0, otherwise the simulation never stops.
-    # p_specular : probability that a bounce is specular. Otherwise the
-    #              bounce is diffuse.
+    # It must be > 0, otherwise the simulation never stops.
+    # p_specular : probability that a bounce is specular. Otherwise the bounce is diffuse.
 
     def __init__(self, p_stick, p_specular):
         if p_stick <= 0 or p_stick > 1:
@@ -29,7 +28,7 @@ class Floor:
         # The particle crossed z = 0 somewhere inside the step. We find the
         # point with linear interpolation between the old and the new position:
         # z goes from z_old to z_new, so z = 0 at the fraction
-        #     f = z_old / (z_old - z_new)
+        # f = z_old / (z_old - z_new)
         # of the step (0 <= f <= 1).
         z_old = r_old[:, 2]
         z_new = r_new[:, 2]
@@ -40,10 +39,10 @@ class Floor:
         return r_land
 
     def land(self, p, ind, r_land, rng):
-        # p      : the Particles object (we change it here)
-        # ind    : indices of the particles that landed in this step
-        # r_land : their landing points
-        # rng    : random number generator
+        # p: the Particles object (we change it here)
+        # ind: indices of the particles that landed in this step
+        # r_land: their landing points
+        # rng: random number generator
         if len(ind) == 0:
             return
 
