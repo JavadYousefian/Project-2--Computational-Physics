@@ -30,6 +30,13 @@ def test_mean_range():
     assert np.isclose(analysis.mean_range(), expected)
 
 
+def test_mean_range_squared():
+    # <R^2> = <v^4> <sin^2(2 theta)> calculated with integrals must be
+    # 10 sigma^4
+    expected = maxwell_mean(4) * cosine_mean(lambda t: np.sin(2 * t) ** 2)
+    assert np.isclose(analysis.mean_range_squared(), expected)
+
+
 def test_range_formula():
     # R = 2 v_h v_z / g must be where the exact flight comes back to z = 0,
     # which happens at the time t = 2 v_z / g
@@ -48,8 +55,16 @@ def test_bounce_probability():
     assert np.isclose(np.sum(k * p), analysis.mean_bounces(0.2))
 
 
+def test_terminal_velocity():
+    # the exact solution after a long fall must have v_z = -v_t
+    _, v = exact_flight(np.zeros((1, 3)), np.zeros((1, 3)), 100.0, gamma=0.5)
+    assert np.isclose(-v[0, 2], analysis.terminal_velocity(gamma=0.5))
+
+
 def test_checks_pass():
-    # the range and energy checks must pass (with fewer particles, faster)
+    # some of the checks must pass (with fewer particles, so it is faster)
     checks = analysis.check_range(n=2000) + analysis.check_energy(n=200)
+    checks += analysis.check_symmetry(n=2000)
+    checks += analysis.check_terminal_velocity(n=10)
     for check in checks:
         assert check["ok"], check
