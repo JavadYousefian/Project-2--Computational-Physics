@@ -8,6 +8,8 @@
 # dv/dt = -g z_hat - (gamma / m) v
 # We use units with m = 1 and g = 1.
 
+import gc
+
 import numpy as np
 from scipy.integrate import solve_ivp
 
@@ -133,10 +135,22 @@ class Particles:
         if method == "solve_ivp":
             # put the positions and velocities of the flying particles in one array
             y0 = np.concatenate((r.ravel(), v.ravel()))
-            # first_step=dt: solve_ivp tries the whole step at once. Without drag
-            # the path is a parabola and RK45 is exact for it, so one step is
-            # enough. With drag it makes smaller steps if the error is too big.
-            sol = solve_ivp(self.rhs, (0, dt), y0, rtol=rtol, atol=atol, first_step=dt)
+            # With the benchmark we saw that the memory grows to a few GB for
+            # N = 100000. The solver object of scipy has a reference cycle, so
+            # only the garbage collector deletes it, and sometimes much too
+            # late. So we stop the garbage collector during the call and clean
+            # up right after it.
+            gc.disable()
+            try:
+                # first_step=dt: solve_ivp tries the whole step at once. Without
+                # drag the path is a parabola and RK45 is exact for it, so one
+                # step is enough. With drag it makes smaller steps if needed.
+                sol = solve_ivp(
+                    self.rhs, (0, dt), y0, rtol=rtol, atol=atol, first_step=dt
+                )
+            finally:
+                gc.enable()
+            gc.collect(0)
             if not sol.success:
                 raise RuntimeError(sol.message)
             self.n_eval += sol.nfev
