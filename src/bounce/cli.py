@@ -2,7 +2,8 @@
 #     bounce run          run one simulation and save the results
 #     bounce validate     compare the simulation with the theory
 #     bounce validate --studies    and also run the error studies
-# (bounce benchmark will come later)
+#     bounce benchmark    measure the time for N = 1000, 10000, 100000
+#     bounce benchmark --profile   and also run cProfile
 
 import argparse
 import time
@@ -37,6 +38,13 @@ def make_parser():
     validate.add_argument("--dt", type=float, default=0.01, help="time step")
     validate.add_argument("--seed", type=int, default=0)
     validate.add_argument("--studies", action="store_true", help="error studies")
+
+    benchmark = commands.add_parser("benchmark", help="measure the time")
+    benchmark.add_argument(
+        "--sizes", type=int, nargs="+", default=[1000, 10000, 100000]
+    )
+    benchmark.add_argument("--profile", action="store_true", help="run cProfile")
+    benchmark.add_argument("--profile-n", type=int, default=10000)
     return parser
 
 
@@ -101,9 +109,30 @@ def do_validate(args):
     return 0
 
 
+def do_benchmark(args):
+    # measure the time for different numbers of particles, and with --profile
+    # run cProfile to see which functions are the slowest
+    print("One step with all particles flying")
+    rows = analysis.benchmark_step(args.sizes)
+    analysis.print_table(rows)
+    print(f"time/step ~ N^{analysis.scaling_exponent(rows, 'time/step'):.2f}")
+
+    print("\nFull simulation")
+    rows = analysis.benchmark_run(args.sizes)
+    analysis.print_table(rows)
+    print(f"time ~ N^{analysis.scaling_exponent(rows, 'time'):.2f}")
+
+    if args.profile:
+        print(f"\ncProfile with N = {args.profile_n}")
+        print(analysis.profile_run(args.profile_n))
+    return 0
+
+
 def main(argv=None):
     # this function runs when we type "bounce" in the terminal
     args = make_parser().parse_args(argv)
     if args.command == "run":
         return do_run(args)
-    return do_validate(args)
+    if args.command == "validate":
+        return do_validate(args)
+    return do_benchmark(args)

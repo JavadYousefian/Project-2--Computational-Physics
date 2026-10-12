@@ -14,3 +14,8 @@ def test_run(tmp_path):
 def test_validate():
     # "bounce validate" with fewer particles must run and all checks must pass
     assert main(["validate", "--n", "1000"]) == 0
+
+
+def test_benchmark():
+    # "bounce benchmark" with small sizes must run
+    assert main(["benchmark", "--sizes", "100", "300"]) == 0

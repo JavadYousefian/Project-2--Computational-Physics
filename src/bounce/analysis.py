@@ -1,5 +1,10 @@
-# Theory formulas and validation checks (Javad). The plots at the end are
-# Kevin's part.
+# Theory formulas, validation checks, error studies and benchmark (Javad).
+# The plots at the end are Kevin's part.
+
+import cProfile
+import io
+import pstats
+import time
 
 import numpy as np
 from scipy import stats
@@ -8,9 +13,8 @@ from scipy.integrate import solve_ivp
 from .particles import Particles, exact_flight
 from .simulation import run_simulation
 
-# ---------------------------------------------------------------------------
 # Theory formulas
-# ---------------------------------------------------------------------------
+
 
 
 def range_no_drag(v, g=1.0):
@@ -81,9 +85,9 @@ def mean_range_error(dt, g=1.0):
     return np.pi * g * dt**2 / 24
 
 
-# ---------------------------------------------------------------------------
+
 # Validation checks
-# ---------------------------------------------------------------------------
+
 # Every check gives back a list of dicts with "name", "value", "target"
 # (as text) and "ok" (True or False).
 
@@ -266,9 +270,9 @@ def run_all_checks(n=10000, dt=0.01, seed=0):
     return checks
 
 
-# ---------------------------------------------------------------------------
+
 # Error studies
-# ---------------------------------------------------------------------------
+
 
 
 def roundoff_study(steps_list=(10, 100, 1000, 10000), t_total=2.0, n=1000, seed=0):
@@ -372,9 +376,71 @@ def print_table(rows):
         print(line)
 
 
-# ---------------------------------------------------------------------------
+# Benchmark and profiling
+
+
+
+def benchmark_step(sizes=(1000, 10000, 100000), dt=0.01, repeats=20, seed=0):
+    # Time of one move() when all n particles are flying. The particles do not
+    # interact, so the work should grow like n (linear). We repeat it and keep
+    # the best time, because other programs on the computer can slow it down
+    rows = []
+    for n in sizes:
+        p = Particles.from_source(n, rng=seed)
+        times = []
+        for i in range(repeats):
+            t0 = time.perf_counter()
+            p.move(dt)
+            times.append(time.perf_counter() - t0)
+        best = min(times)
+        rows.append({"n": n, "time/step": best, "time/particle": best / n})
+    return rows
+
+
+def benchmark_run(sizes=(1000, 10000, 100000), seed=0):
+    # Time of a full simulation with the default settings. The number of steps
+    # is set by the slowest particles (the last ones that stick), and in most
+    # of these steps only a few particles are still flying
+    rows = []
+    for n in sizes:
+        t0 = time.perf_counter()
+        res = run_simulation(n=n, seed=seed)
+        total = time.perf_counter() - t0
+        rows.append(
+            {
+                "n": n,
+                "time": total,
+                "steps": res["n_steps"],
+                "particle steps": res["particle_steps"],
+                "time/particle step": total / res["particle_steps"],
+            }
+        )
+    return rows
+
+
+def scaling_exponent(rows, key):
+    # fit time ~ n^a, so log(time) = a log(n) + b, and give back a
+    n = [row["n"] for row in rows]
+    t = [row[key] for row in rows]
+    return np.polyfit(np.log(n), np.log(t), 1)[0]
+
+
+def profile_run(n=10000, top=15, seed=0):
+    # run one simulation with cProfile, which measures how much time is spent
+    # in every function, and give back the report of the slowest ones
+    profiler = cProfile.Profile()
+    profiler.enable()
+    run_simulation(n=n, seed=seed)
+    profiler.disable()
+    output = io.StringIO()
+    report = pstats.Stats(profiler, stream=output)
+    report.sort_stats("cumulative").print_stats(top)
+    return output.getvalue()
+
+
+
 # Plots (Kevin)
-# ---------------------------------------------------------------------------
+
 
 
 def plot_results(results, folder="figures"):
