@@ -10,24 +10,23 @@ import random
 
 # np.array([r1, v1], [r2, v2] ….. [rn, vn])
 
-def maxwell_speeds(N, sigma, range):
+def maxwell_speeds(N, sigma, rng):
     """
     Obtain vectors with random 1D position & velocity values
 
     Keyword Arguments:
     N (int): number of particles
     sigma (int/float): distribution width
-    range (int/float): distribution range
+    rng (int/float): distribution range
     """
     # rejection sampling
-    # random number between 0 & 1
-    r = random.random()
-
-    # For particle in range N particles
-    for p in range(N):
-        # random number between 0 and 1 for position
-        r = random.random()
-
+    # N random velocities between 0 & 1
+    v = rng.random(N)   # numpy array
+    # speed according to the maxwell distribution
+    speed = (v ** 2) * np.exp(-(v ** 2) / (2 * sigma**2))
+    # put v and speed into a state vector
+    state_vecs = np.column_stack((v, speed))
+    return state_vecs
 
 def cosine_directions(N, range):
     # inverse CDF
