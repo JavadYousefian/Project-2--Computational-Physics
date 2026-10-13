@@ -12,7 +12,7 @@ import random
 
 def maxwell_speeds(N, sigma, rng):
     """
-    Obtain vectors with random 1D position & velocity values
+    Obtain random speed & PDF distribution values for N particles
 
     Keyword Arguments:
     N (int): number of particles
@@ -25,13 +25,29 @@ def maxwell_speeds(N, sigma, rng):
     # speed according to the maxwell distribution
     speed = (v ** 2) * np.exp(-(v ** 2) / (2 * sigma**2))
     # put v and speed into a state vector
-    state_vecs = np.column_stack((v, speed))
-    return state_vecs
+    speed_dist = np.column_stack((v, speed))
+    return speed_dist
 
-def cosine_directions(N, range):
+def cosine_directions(N, rng):
+    """
+    Obtain random theta & phi direction values for N particles
+
+    Keyword Arguments:
+    N (int): number of particles
+    sigma (int/float): distribution width
+    rng (int/float): distribution range
+    """
     # inverse CDF
     # for random floats on [0, 1)
     # particles leave soure with cosine law p(t) propto cos(t)sin(t)
     # inverse CDF gives: t = arcsin sqrt(u)
     # phi = 2piu'
-    pass
+    # u1 and u2: N random numbers between 0 and 1
+    u1 = rng.random(N)
+    u2 = rng.random(N)
+    # theta direction:
+    sqrtu1 = np.sqrt(u1)
+    theta = np.arcsin(sqrtu1)
+    phi = 2 * np.pi * u2
+    ang_dist = np.column_stack((theta, phi))
+    return ang_dist
