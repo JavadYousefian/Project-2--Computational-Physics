@@ -19,13 +19,16 @@ def maxwell_speeds(N, sigma, rng):
     sigma (int/float): distribution width
     rng (int/float): distribution range
     """
+    f = lambda v: (v ** 2) * np.exp(-(v ** 2) / (2 * sigma**2))
+    v_max = np.sqrt(2) * (sigma**2)
+    fv_max = f(v_max)
     # rejection sampling
-    # N random velocities between 0 & 1
-    v = rng.random(N)   # numpy array
+    # N random velocities between 0 & v_max
+    v = rng.random(N) * v_max
     # speed according to the maxwell distribution
-    speed = (v ** 2) * np.exp(-(v ** 2) / (2 * sigma**2))
-    # put v and speed into a state vector
-    speed_dist = np.column_stack((v, speed))
+    fv = rng.random_(N) * fv_max # numpy array    # put v and speed into a state vector
+    speed_dist = np.column_stack((v, fv))
+    
     return speed_dist
 
 def cosine_directions(N, rng):
