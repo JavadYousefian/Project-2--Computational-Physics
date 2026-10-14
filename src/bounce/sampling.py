@@ -56,7 +56,7 @@ def maxwell_speeds(N, sigma, rng):
             v_lst.append(v)
             fv_lst.append(fv)
             accs += 1
-    dist_arr = np.column_stack(v_lst, fv_lst)
+    dist_arr = np.column_stack((v_lst, fv_lst))
     test_lst = [accs, runs]
     return dist_arr, test_lst
 
