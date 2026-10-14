@@ -22,6 +22,16 @@ def maxwell_speeds(N, sigma, rng):
         distribution width
     rng : numpy.random.generator
         random number generator
+
+    Returns
+    -------
+    dist_arr : array of lists
+        array with two-item lists containing the randomly generated velocity 
+        for a given particle and its corresponding maxwell distribution value
+        (in that order)
+    test_lst : list
+        list containing the total number of random samples generated & the number
+        of samples accepted (in that order)
     """
     f = lambda v: (v ** 2) * np.exp(-(v ** 2) / (2 * sigma**2))
     v_max = np.sqrt(2) * (sigma)
@@ -30,8 +40,13 @@ def maxwell_speeds(N, sigma, rng):
     # empty array
     v_lst = []
     fv_lst = []
-    counts = 0
-    while counts < N:
+    # total # of runs
+    runs = 0
+    # samples accepted
+    accs = 0
+    # while there are less than N accepted particles
+    while accs < N:
+        runs += 1
         #random float from 0 to 1
         v = rng.random()
         #random float from 0 to fv_max
@@ -40,9 +55,10 @@ def maxwell_speeds(N, sigma, rng):
         if fv <= f(v):
             v_lst.append(v)
             fv_lst.append(fv)
-            counts += 1
+            accs += 1
     dist_arr = np.column_stack(v_lst, fv_lst)
-    return dist_arr
+    test_lst = [accs, runs]
+    return dist_arr, test_lst
 
 def cosine_directions(N, rng):
     """
@@ -54,6 +70,14 @@ def cosine_directions(N, rng):
         number of particles
     rng : numpy.random.generator
         random number generator
+
+    Returns
+    -------
+    direction_arr : array of lists
+        array with two-item lists containing the orientational components, 
+        theta and phi, for the particles using the relations determined
+        from the cumulative distribution function
+
     """
     # inverse CDF
     # for random floats on [0, 1)
@@ -69,3 +93,8 @@ def cosine_directions(N, rng):
     phi = 2 * np.pi * u2
     ang_dist = np.column_stack((theta, phi))
     return ang_dist
+
+
+# Other to-dos for my division of labor section:
+#   test the samples with the distributions
+#   get the acceptance rate of the rejection sampling
