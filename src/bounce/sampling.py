@@ -33,7 +33,8 @@ def maxwell_speeds(N, sigma, rng):
         list containing the total number of random samples generated & the number
         of samples accepted (in that order)
     """
-    f = lambda v: (v ** 2) * np.exp(-(v ** 2) / (2 * sigma**2))
+    const = np.sqrt(2 * np.pi) * sigma**(-3)
+    f = lambda v: const * (v ** 2) * np.exp(-(v ** 2) / (2 * sigma**2))
     v_max = np.sqrt(2) * (sigma)
     fv_max = f(v_max)
     # rejection sampling
