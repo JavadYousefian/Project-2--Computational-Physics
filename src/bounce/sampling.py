@@ -14,10 +14,14 @@ def maxwell_speeds(N, sigma, rng):
     """
     Obtain random speed & PDF distribution values for N particles
 
-    Keyword Arguments:
-    N (int): number of particles
-    sigma (int/float): distribution width
-    rng (numpy generator): distribution range
+    Parameters
+    ----------
+    N : int
+        number of particles
+    sigma : int or float
+        distribution width
+    rng : numpy.random.generator
+        random number generator
     """
     f = lambda v: (v ** 2) * np.exp(-(v ** 2) / (2 * sigma**2))
     v_max = np.sqrt(2) * (sigma)
