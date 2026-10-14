@@ -47,11 +47,13 @@ def maxwell_speeds(N, sigma, rng):
 def cosine_directions(N, rng):
     """
     Obtain random theta & phi direction values for N particles
-
-    Keyword Arguments:
-    N (int): number of particles
-    sigma (int/float): distribution width
-    rng (int/float): distribution range
+    
+    Parameters
+    ----------
+    N : int
+        number of particles
+    rng : numpy.random.generator
+        random number generator
     """
     # inverse CDF
     # for random floats on [0, 1)
