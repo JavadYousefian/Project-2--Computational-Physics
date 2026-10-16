@@ -59,7 +59,7 @@ def maxwell_speeds(N, sigma, rng):
             accs += 1
     dist_arr = np.column_stack((v_lst, fv_lst))
     test_lst = [accs, runs]
-    return dist_arr, test_lst
+    return dist_arr
 
 def cosine_directions(N, rng):
     """
@@ -92,6 +92,12 @@ def cosine_directions(N, rng):
     sqrtu1 = np.sqrt(u1)
     theta = np.arcsin(sqrtu1)
     phi = 2 * np.pi * u2
+
+    # convert to cartesian (vectors for particles.py should have shape (N, 3))
+    x = np.sin(theta) * np.cos(phi)
+    y = np.sin(theta) * np.sin(phi)
+    z = np.cos(theta)
+    
     ang_dist = np.column_stack((theta, phi))
     return ang_dist
 
