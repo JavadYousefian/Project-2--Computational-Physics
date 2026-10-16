@@ -38,6 +38,14 @@ def test_projectile():
     assert np.allclose(p.v, [[1, 0, -2]])
 
 
+def test_from_source():
+    # all particles start at the source (the origin) and go up
+    p = Particles.from_source(1000, rng=1)
+    assert np.all(p.r == 0)
+    assert np.all(p.v[:, 2] >= 0)
+    assert p.n_flying() == 1000
+
+
 @pytest.mark.parametrize("gamma", [0.0, 0.3, 2.0])
 def test_solve_ivp_vs_exact(gamma):
     # solve_ivp must give the same as the exact solution, with and without drag

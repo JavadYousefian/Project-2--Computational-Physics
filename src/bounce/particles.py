@@ -2,20 +2,24 @@
 # and moves them in time with solve_ivp.
 
 # Equation of motion during the flight (gravity + linear air drag):
-#  m d^2r/dt^2 = -m g z_hat - gamma dr/dt
+# m d^2r/dt^2 = -m g z_hat - gamma dr/dt
 # We write it as two first order equations:
 # dr/dt = v
 # dv/dt = -g z_hat - (gamma / m) v
 # We use units with m = 1 and g = 1.
 
+import gc
+
 import numpy as np
 from scipy.integrate import solve_ivp
+
+from .sampling import cosine_directions, maxwell_speeds
 
 
 def exact_flight(r0, v0, t, g=1.0, gamma=0.0, m=1.0):
     # Exact solution of the equation of motion (the floor is not used here).
     # We use it to test solve_ivp, and as a second way to move the particles.
-    
+
     # Without drag (gamma = 0) it is normal projectile motion:
     # r(t) = r0 + v0 t - 1/2 g t^2 z_hat
     # v(t) = v0 - g t z_hat
@@ -41,7 +45,7 @@ def exact_flight(r0, v0, t, g=1.0, gamma=0.0, m=1.0):
 class Particles:
     # All particles of the simulation. The particles do not interact with each
     # other, so we keep all of them in numpy arrays and move them together.
-    
+
     # pos: array (N, 3), start positions
     # vel: array (N, 3), start velocities
     # gamma: drag coefficient (gamma = 0 means no air drag)
@@ -75,6 +79,17 @@ class Particles:
         self.first_land = np.full((N, 3), np.nan)
         # number of times solve_ivp called rhs (for the benchmark)
         self.n_eval = 0
+
+    @classmethod
+    def from_source(cls, n, sigma=1.0, rng=None, gamma=0.0, g=1.0, m=1.0):
+        # make n particles at the origin (the source) with random velocities:
+        # the speed comes from the Maxwell-Boltzmann distribution (hot source)
+        # and the direction from the cosine law (more go up than sideways)
+        rng = np.random.default_rng(rng)
+        speed = maxwell_speeds(n, sigma, rng)
+        direction = cosine_directions(n, rng)
+        vel = speed[:, np.newaxis] * direction
+        return cls(np.zeros((n, 3)), vel, gamma, g, m)
 
     def __len__(self):
         return len(self.r)
@@ -120,10 +135,22 @@ class Particles:
         if method == "solve_ivp":
             # put the positions and velocities of the flying particles in one array
             y0 = np.concatenate((r.ravel(), v.ravel()))
-            # first_step=dt: solve_ivp tries the whole step at once. Without drag
-            # the path is a parabola and RK45 is exact for it, so one step is
-            # enough. With drag it makes smaller steps if the error is too big.
-            sol = solve_ivp(self.rhs, (0, dt), y0, rtol=rtol, atol=atol, first_step=dt)
+            # With the benchmark we saw that the memory grows to a few GB for
+            # N = 100000. The solver object of scipy has a reference cycle, so
+            # only the garbage collector deletes it, and sometimes much too
+            # late. So we stop the garbage collector during the call and clean
+            # up right after it.
+            gc.disable()
+            try:
+                # first_step=dt: solve_ivp tries the whole step at once. Without
+                # drag the path is a parabola and RK45 is exact for it, so one
+                # step is enough. With drag it makes smaller steps if needed.
+                sol = solve_ivp(
+                    self.rhs, (0, dt), y0, rtol=rtol, atol=atol, first_step=dt
+                )
+            finally:
+                gc.enable()
+            gc.collect(0)
             if not sol.success:
                 raise RuntimeError(sol.message)
             self.n_eval += sol.nfev
@@ -135,7 +162,7 @@ class Particles:
         elif method == "exact":
             r_new, v_new = exact_flight(r, v, dt, self.g, self.gamma, self.m)
         else:
-            print("method must be solve_ivp or exact")
+            raise ValueError("method must be solve_ivp or exact")
 
         self.r[ind] = r_new
         self.v[ind] = v_new

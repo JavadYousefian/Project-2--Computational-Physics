@@ -18,6 +18,9 @@ dependencies = ["numpy", "scipy", "matplotlib"]
 [project.optional-dependencies]
 dev = ["pytest", "black"]
 
+[project.scripts]
+bounce = "bounce.cli:main"
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
