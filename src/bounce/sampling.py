@@ -98,7 +98,7 @@ def cosine_directions(N, rng):
     y = np.sin(theta) * np.sin(phi)
     z = np.cos(theta)
     
-    ang_dist = np.column_stack((theta, phi))
+    ang_dist = np.column_stack((x, y, z))
     return ang_dist
 
 
