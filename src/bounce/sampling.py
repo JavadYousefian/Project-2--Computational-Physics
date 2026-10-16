@@ -10,7 +10,7 @@ import random
 
 # np.array([r1, v1], [r2, v2] ….. [rn, vn])
 
-def maxwell_speeds(N, sigma, rng):
+def maxwell_speeds(N, sigma, rng, return_rate = False):
     """
     Obtain random speed & PDF distribution values for N particles
 
@@ -59,7 +59,10 @@ def maxwell_speeds(N, sigma, rng):
             accs += 1
     dist_arr = np.column_stack((v_lst, fv_lst))
     test_lst = [accs, runs]
-    return np.array(v_lst)
+    if return_rate == True:
+        return np.array(v_lst), test_lst
+    else:
+        return np.array(v_lst)
 
 def cosine_directions(N, rng):
     """
