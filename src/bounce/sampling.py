@@ -1,0 +1,102 @@
+import numpy as np
+import random
+
+
+def maxwell_speeds(N, sigma, rng, return_rate = False):
+    """
+    Obtain random speed & PDF distribution values for N particles
+
+    Parameters
+    ----------
+    N : int
+        number of particles
+    sigma : int or float
+        distribution width
+    rng : numpy.random.generator
+        random number generator
+    return_rate : bool
+        condition for whether the funciton returns
+        acceptance rate information
+
+    Returns
+    -------
+    dist_arr : array of lists
+        array with two-item lists containing the randomly generated velocity 
+        for a given particle and its corresponding maxwell distribution value
+        (in that order)
+    test_lst : list
+        list containing the total number of random samples generated & the number
+        of samples accepted (in that order)
+    """
+    # Maxwell-Boltzmann distrivution
+    const = np.sqrt(2 / np.pi) * sigma**(-3)
+    f = lambda v: const * (v ** 2) * np.exp(-(v ** 2) / (2 * sigma**2))
+    v_max = np.sqrt(2) * (sigma)
+    fv_max = f(v_max)
+    # rejection sampling
+    # empty array
+    v_lst = []
+    fv_lst = []
+    # total # of runs
+    runs = 0
+    # samples accepted
+    accs = 0
+    # while there are less than N accepted particles
+    while accs < N:
+        runs += 1
+        #random float
+        v = rng.random() * (5 * sigma)
+        #random float from 0 to fv_max
+        fv = rng.random() * fv_max
+        # if the random fv is under the f(v) curve
+        if fv <= f(v):
+            v_lst.append(v)
+            fv_lst.append(fv)
+            accs += 1
+    dist_arr = np.column_stack((v_lst, fv_lst))
+    test_lst = [accs, runs]
+    if return_rate == True:
+        return np.array(v_lst), test_lst
+    else:
+        return np.array(v_lst)
+
+def cosine_directions(N, rng):
+    """
+    Obtain random theta & phi direction values for N particles
+    
+    Parameters
+    ----------
+    N : int
+        number of particles
+    rng : numpy.random.generator
+        random number generator
+
+    Returns
+    -------
+    direction_arr : array of lists
+        array with the three-dimensional orientation information in
+        cartesian coordinates for each particle
+
+    """
+    # random numbers:
+    u1 = rng.random(N)
+    u2 = rng.random(N)
+
+    # theta direction:
+    sqrtu1 = np.sqrt(u1)
+    theta = np.arcsin(sqrtu1)
+    # phi direction
+    phi = 2 * np.pi * u2
+
+    # convert to cartesian (vectors for particles.py should have shape (N, 3))
+    x = np.sin(theta) * np.cos(phi)
+    y = np.sin(theta) * np.sin(phi)
+    z = np.cos(theta)
+    
+    ang_dist = np.column_stack((x, y, z))
+    return ang_dist
+
+
+# Other to-dos for my division of labor section:
+#   test the samples with the distributions
+#   get the acceptance rate of the rejection sampling
