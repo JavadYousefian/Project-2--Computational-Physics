@@ -1,14 +1,6 @@
 import numpy as np
 import random
 
-# maxwell_speeds-- name Javad assigned for speeds
-# cosine_directions -- inverse CDF
-# I'M MAKING THE FIRST STEP! I generate the random numbers and get the positions
-# python -m pip install -e ".[dev]"
-# python -m pytest
-# src/bounce/sampling.py
-
-# np.array([r1, v1], [r2, v2] ….. [rn, vn])
 
 def maxwell_speeds(N, sigma, rng, return_rate = False):
     """
@@ -22,6 +14,9 @@ def maxwell_speeds(N, sigma, rng, return_rate = False):
         distribution width
     rng : numpy.random.generator
         random number generator
+    return_rate : bool
+        condition for whether the funciton returns
+        acceptance rate information
 
     Returns
     -------
@@ -33,6 +28,7 @@ def maxwell_speeds(N, sigma, rng, return_rate = False):
         list containing the total number of random samples generated & the number
         of samples accepted (in that order)
     """
+    # Maxwell-Boltzmann distrivution
     const = np.sqrt(2 / np.pi) * sigma**(-3)
     f = lambda v: const * (v ** 2) * np.exp(-(v ** 2) / (2 * sigma**2))
     v_max = np.sqrt(2) * (sigma)
@@ -78,22 +74,18 @@ def cosine_directions(N, rng):
     Returns
     -------
     direction_arr : array of lists
-        array with two-item lists containing the orientational components, 
-        theta and phi, for the particles using the relations determined
-        from the cumulative distribution function
+        array with the three-dimensional orientation information in
+        cartesian coordinates for each particle
 
     """
-    # inverse CDF
-    # for random floats on [0, 1)
-    # particles leave soure with cosine law p(t) propto cos(t)sin(t)
-    # inverse CDF gives: t = arcsin sqrt(u)
-    # phi = 2piu'
-    # u1 and u2: N random numbers between 0 and 1
+    # random numbers:
     u1 = rng.random(N)
     u2 = rng.random(N)
+
     # theta direction:
     sqrtu1 = np.sqrt(u1)
     theta = np.arcsin(sqrtu1)
+    # phi direction
     phi = 2 * np.pi * u2
 
     # convert to cartesian (vectors for particles.py should have shape (N, 3))
