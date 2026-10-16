@@ -33,7 +33,7 @@ def maxwell_speeds(N, sigma, rng):
         list containing the total number of random samples generated & the number
         of samples accepted (in that order)
     """
-    const = np.sqrt(2 * np.pi) * sigma**(-3)
+    const = np.sqrt(2 / np.pi) * sigma**(-3)
     f = lambda v: const * (v ** 2) * np.exp(-(v ** 2) / (2 * sigma**2))
     v_max = np.sqrt(2) * (sigma)
     fv_max = f(v_max)
@@ -48,8 +48,8 @@ def maxwell_speeds(N, sigma, rng):
     # while there are less than N accepted particles
     while accs < N:
         runs += 1
-        #random float from 0 to 1
-        v = rng.random()
+        #random float
+        v = rng.random() * (5 * sigma)
         #random float from 0 to fv_max
         fv = rng.random() * fv_max
         # if the random fv is under the f(v) curve
@@ -59,7 +59,7 @@ def maxwell_speeds(N, sigma, rng):
             accs += 1
     dist_arr = np.column_stack((v_lst, fv_lst))
     test_lst = [accs, runs]
-    return dist_arr
+    return np.array(v_lst)
 
 def cosine_directions(N, rng):
     """
