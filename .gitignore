@@ -2,4 +2,4 @@ __pycache__/
 *.egg-info/
 *.npz
 figures/
-.pytest_cache/
+.pytest_cache/.DS_Store
