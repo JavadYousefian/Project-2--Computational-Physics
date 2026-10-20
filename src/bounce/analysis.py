@@ -480,5 +480,10 @@ def plot_final_positions(results, folder):
 
 
 def plot_results(results, folder="figures"):
-    # Kevin will write this function: the figures of one simulation
-    raise NotImplementedError("the plotting functions are not ready yet")
+    folder = Path(folder)
+    files = [plot_final_positions(results, folder)]
+    #block 2 of the code
+    #block 3 of the code
+
+    print(f'figures saved in {folder}')
+    return files
