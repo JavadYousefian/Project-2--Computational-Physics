@@ -2,7 +2,7 @@ import numpy as np
 import random
 
 
-def maxwell_speeds(N, sigma, rng, return_rate = False):
+def maxwell_speeds(N, sigma, rng, return_rate=False):
     """
     Obtain random speed & PDF distribution values for N particles
 
@@ -21,7 +21,7 @@ def maxwell_speeds(N, sigma, rng, return_rate = False):
     Returns
     -------
     dist_arr : array of lists
-        array with two-item lists containing the randomly generated velocity 
+        array with two-item lists containing the randomly generated velocity
         for a given particle and its corresponding maxwell distribution value
         (in that order)
     test_lst : list
@@ -29,8 +29,8 @@ def maxwell_speeds(N, sigma, rng, return_rate = False):
         of samples accepted (in that order)
     """
     # Maxwell-Boltzmann distrivution
-    const = np.sqrt(2 / np.pi) * sigma**(-3)
-    f = lambda v: const * (v ** 2) * np.exp(-(v ** 2) / (2 * sigma**2))
+    const = np.sqrt(2 / np.pi) * sigma ** (-3)
+    f = lambda v: const * (v**2) * np.exp(-(v**2) / (2 * sigma**2))
     v_max = np.sqrt(2) * (sigma)
     fv_max = f(v_max)
     # rejection sampling
@@ -44,9 +44,9 @@ def maxwell_speeds(N, sigma, rng, return_rate = False):
     # while there are less than N accepted particles
     while accs < N:
         runs += 1
-        #random float
+        # random float
         v = rng.random() * (5 * sigma)
-        #random float from 0 to fv_max
+        # random float from 0 to fv_max
         fv = rng.random() * fv_max
         # if the random fv is under the f(v) curve
         if fv <= f(v):
@@ -60,10 +60,11 @@ def maxwell_speeds(N, sigma, rng, return_rate = False):
     else:
         return np.array(v_lst)
 
+
 def cosine_directions(N, rng):
     """
     Obtain random theta & phi direction values for N particles
-    
+
     Parameters
     ----------
     N : int
@@ -92,7 +93,7 @@ def cosine_directions(N, rng):
     x = np.sin(theta) * np.cos(phi)
     y = np.sin(theta) * np.sin(phi)
     z = np.cos(theta)
-    
+
     ang_dist = np.column_stack((x, y, z))
     return ang_dist
 

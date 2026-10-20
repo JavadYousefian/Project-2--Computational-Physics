@@ -69,7 +69,7 @@ def do_run(args):
     print(f"mean final distance:    {np.mean(results['final_r']):.3f}")
     print(f"results saved in {args.output}")
     if args.plot:
-        # the plots are Kevin's part, until they are ready we only print a note
+        # make the figures of this run
         try:
             analysis.plot_results(results)
         except NotImplementedError as error:

@@ -20,7 +20,7 @@ def test_check_bounces_pass():
 
 
 def test_statistical_error_slope(tmp_path):
- 
+
     rows, slope = analysis.statistical_error_study(sizes=(300, 1000, 3000))
     assert abs(slope + 0.5) < 0.2
     filename = analysis.plot_statistical_error(rows, tmp_path)

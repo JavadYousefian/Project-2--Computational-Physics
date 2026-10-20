@@ -1,5 +1,4 @@
 # Theory formulas, validation checks, error studies and benchmark (Javad).
-# The plots at the end are Kevin's part.
 
 import cProfile
 import io
@@ -14,7 +13,6 @@ from .particles import Particles, exact_flight
 from .simulation import run_simulation
 
 # Theory formulas
-
 
 
 def range_no_drag(v, g=1.0):
@@ -83,7 +81,6 @@ def mean_range_error(dt, g=1.0):
     # The mean over s gives tan(theta) g dt^2 / 12, and for the cosine law the
     # mean of tan(theta) is pi / 2, so the mean error is pi g dt^2 / 24
     return np.pi * g * dt**2 / 24
-
 
 
 # Validation checks
@@ -267,12 +264,11 @@ def run_all_checks(n=10000, dt=0.01, seed=0):
     checks += check_random_walk(n, dt, seed)
     checks += check_specular(n, dt, seed)
     checks += check_terminal_velocity(seed=seed)
+    checks += check_bounces(n, dt, seed=seed)
     return checks
 
 
-
 # Error studies
-
 
 
 def roundoff_study(steps_list=(10, 100, 1000, 10000), t_total=2.0, n=1000, seed=0):
@@ -379,7 +375,6 @@ def print_table(rows):
 # Benchmark and profiling
 
 
-
 def benchmark_step(sizes=(1000, 10000, 100000), dt=0.01, repeats=20, seed=0):
     # Time of one move() when all n particles are flying. The particles do not
     # interact, so the work should grow like n (linear). We repeat it and keep
@@ -438,32 +433,33 @@ def profile_run(n=10000, top=15, seed=0):
     return output.getvalue()
 
 
-
 # Plots (Kevin)
 # Written by kevin Geumhan
 
 from pathlib import Path
 from matplotlib.figure import Figure
 
+
 def title_text(results):
-    #literally the title for the figures
-    n = len(results['final_r'])
-    return(
+    # literally the title for the figures
+    n = len(results["final_r"])
+    return (
         f"N = {n}, p_stick = {float(results['p_stick']):g}, "
         f"p_spec = {float(results['p_specular']):g}, "
         f"gamma = {float(results['gamma']):g}"
     )
 
+
 def plot_final_positions(results, folder):
 
-    pos = results['final_positions']
+    pos = results["final_positions"]
     n = len(pos)
-    fig = Figure(figsize=(5.5,5))
+    fig = Figure(figsize=(5.5, 5))
     ax = fig.add_subplot()
 
     alpha = min(1.0, 3000 / n)
-    ax.scatter(pos[:, 0], pos[:,1], s=2, alpha=alpha, lw=0)
-    ax.plot(0, 0, 'r+', ms=12, label='source')
+    ax.scatter(pos[:, 0], pos[:, 1], s=2, alpha=alpha, lw=0)
+    ax.plot(0, 0, "r+", ms=12, label="source")
     lim = np.percentile(results["final_r"], 99)
     ax.set_xlim(-lim, lim)
     ax.set_ylim(-lim, lim)
@@ -475,6 +471,7 @@ def plot_final_positions(results, folder):
     filename = Path(folder) / "final_positions.png"
     fig.savefig(filename, dpi=150, bbox_inches="tight")
     return filename
+
 
 def plot_distance(results, folder):
 
@@ -509,13 +506,13 @@ def plot_distance(results, folder):
 
 
 def plot_bounces(results, folder):
-    
+
     k = results["bounces"]
     n = len(k)
     p_stick = float(results["p_stick"])
     counts = np.bincount(k)
     k_values = np.arange(len(counts))
-    seen = counts > 0 
+    seen = counts > 0
     fig = Figure(figsize=(6, 4.5))
     ax = fig.add_subplot()
     ax.errorbar(
@@ -549,8 +546,9 @@ def plot_results(results, folder="figures"):
     files = [plot_final_positions(results, folder)]
     files.append(plot_distance(results, folder))
     files.append(plot_bounces(results, folder))
-    print(f'figures saved in {folder}')
+    print(f"figures saved in {folder}")
     return files
+
 
 def check_bounces(n=10000, dt=0.01, p_stick=0.2, seed=0):
 
@@ -626,4 +624,5 @@ def plot_statistical_error(rows, folder="figures"):
     fig.savefig(filename, dpi=150, bbox_inches="tight")
     return filename
 
-#testing testing
+
+# testing testing
