@@ -454,7 +454,27 @@ def _title(results):
         f'gamma = {float(results['gamma']):g }'
     )
 
+def plot_final_positions(results, folder):
 
+    pos = results['final_positions']
+    n = len(pos)
+    fig = Figure(figsize=(5.5,5))
+    ax = fig.add_subplot()
+
+    alpha = min(1.0, 3000 / n)
+    ax.scatter(pos[:, 0], pos[:,1], s=2, alpha=alpha, lw=0)
+    ax.plot(0, 0, 'r+', ms=12, label='source')
+    lim = np.percentile(results["final_r"], 99)
+    ax.set_xlim(-lim, lim)
+    ax.set_ylim(-lim, lim)
+    ax.set_aspect("equal")
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    ax.set_title(_title(results), fontsize=9)
+    ax.legend(loc="upper right")
+    filename = Path(folder) / "final_positions.png"
+    fig.savefig(filename, dpi=150, bbox_inches="tight")
+    return filename
 
 
 
