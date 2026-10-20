@@ -449,9 +449,9 @@ def title_text(results):
     #literally the title for the figures
     n = len(results['final_r'])
     return(
-        f'N = {n}, p_stick= {float(results['p_stick']):g }, '
-        f'p_spec = {float(results['p_specular']):g }, '
-        f'gamma = {float(results['gamma']):g }'
+        f"N = {n}, p_stick = {float(results['p_stick']):g}, "
+        f"p_spec = {float(results['p_specular']):g}, "
+        f"gamma = {float(results['gamma']):g}"
     )
 
 def plot_final_positions(results, folder):
