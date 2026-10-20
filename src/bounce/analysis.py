@@ -440,9 +440,190 @@ def profile_run(n=10000, top=15, seed=0):
 
 
 # Plots (Kevin)
+# Written by kevin Geumhan
 
+from pathlib import Path
+from matplotlib.figure import Figure
+
+def title_text(results):
+    #literally the title for the figures
+    n = len(results['final_r'])
+    return(
+        f"N = {n}, p_stick = {float(results['p_stick']):g}, "
+        f"p_spec = {float(results['p_specular']):g}, "
+        f"gamma = {float(results['gamma']):g}"
+    )
+
+def plot_final_positions(results, folder):
+
+    pos = results['final_positions']
+    n = len(pos)
+    fig = Figure(figsize=(5.5,5))
+    ax = fig.add_subplot()
+
+    alpha = min(1.0, 3000 / n)
+    ax.scatter(pos[:, 0], pos[:,1], s=2, alpha=alpha, lw=0)
+    ax.plot(0, 0, 'r+', ms=12, label='source')
+    lim = np.percentile(results["final_r"], 99)
+    ax.set_xlim(-lim, lim)
+    ax.set_ylim(-lim, lim)
+    ax.set_aspect("equal")
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    ax.set_title(title_text(results), fontsize=9)
+    ax.legend(loc="upper right")
+    filename = Path(folder) / "final_positions.png"
+    fig.savefig(filename, dpi=150, bbox_inches="tight")
+    return filename
+
+def plot_distance(results, folder):
+
+    final_r = results["final_r"]
+    first_r = results["first_r"]
+    bins = np.linspace(0, np.percentile(final_r, 99), 60)
+    fig = Figure(figsize=(6, 4.5))
+    ax = fig.add_subplot()
+    ax.hist(final_r, bins=bins, density=True, alpha=0.6, label="final position")
+    ax.hist(
+        first_r,
+        bins=bins,
+        density=True,
+        histtype="step",
+        lw=1.5,
+        label="first landing",
+    )
+    mean_final = np.mean(final_r)
+    mean_first = np.mean(first_r)
+    ax.axvline(mean_final, color="C0", ls="--", label=f"mean final = {mean_final:.3f}")
+    ax.axvline(mean_first, color="C1", ls="--", label=f"mean first = {mean_first:.3f}")
+    if float(results["gamma"]) == 0:
+        theory = mean_range()
+        ax.axvline(theory, color="k", ls=":", label=f"theory <R> = {theory:.3f}")
+    ax.set_xlabel("distance r from the source")
+    ax.set_ylabel("probability density")
+    ax.set_title(title_text(results), fontsize=9)
+    ax.legend(fontsize=8)
+    filename = Path(folder) / "distance_r.png"
+    fig.savefig(filename, dpi=150, bbox_inches="tight")
+    return filename
+
+
+def plot_bounces(results, folder):
+    
+    k = results["bounces"]
+    n = len(k)
+    p_stick = float(results["p_stick"])
+    counts = np.bincount(k)
+    k_values = np.arange(len(counts))
+    seen = counts > 0 
+    fig = Figure(figsize=(6, 4.5))
+    ax = fig.add_subplot()
+    ax.errorbar(
+        k_values[seen],
+        counts[seen] / n,
+        yerr=np.sqrt(counts[seen]) / n,
+        fmt="o",
+        ms=4,
+        capsize=2,
+        label="simulation",
+    )
+    theory = bounce_probability(k_values, p_stick)
+    ax.plot(k_values, theory, "k-", label="theory $(1 - p)^k p$")
+    ax.set_yscale("log")
+    ax.set_xlabel("number of bounces k")
+    ax.set_ylabel("P(k)")
+    ax.set_title(
+        title_text(results)
+        + f"\nmean k = {np.mean(k):.3f}, theory = {mean_bounces(p_stick):.3f}",
+        fontsize=9,
+    )
+    ax.legend()
+    filename = Path(folder) / "bounces.png"
+    fig.savefig(filename, dpi=150, bbox_inches="tight")
+    return filename
 
 
 def plot_results(results, folder="figures"):
-    # Kevin will write this function: the figures of one simulation
-    raise NotImplementedError("the plotting functions are not ready yet")
+    folder = Path(folder)
+    folder.mkdir(parents=True, exist_ok=True)
+    files = [plot_final_positions(results, folder)]
+    files.append(plot_distance(results, folder))
+    files.append(plot_bounces(results, folder))
+    print(f'figures saved in {folder}')
+    return files
+
+def check_bounces(n=10000, dt=0.01, p_stick=0.2, seed=0):
+
+    res = run_simulation(n=n, dt=dt, p_stick=p_stick, seed=seed)
+    k = res["bounces"]
+    mean = np.mean(k)
+    err = np.std(k) / np.sqrt(n)
+    theory = mean_bounces(p_stick)
+
+    # the largest k_max where n P(k_max - 1) is still >= 5
+    k_max = 1
+    while n * bounce_probability(k_max, p_stick) >= 5:
+        k_max += 1
+    observed = np.bincount(np.minimum(k, k_max), minlength=k_max + 1)
+    expected = n * bounce_probability(np.arange(k_max), p_stick)
+    # P(k >= k_max) = (1 - p_stick)^k_max (sum of the geometric series)
+    expected = np.append(expected, n * (1 - p_stick) ** k_max)
+    p_value = stats.chisquare(observed, expected).pvalue
+    return [
+        {
+            "name": "mean number of bounces",
+            "value": mean,
+            "target": f"{theory:.4f} +- {3 * err:.4f}",
+            "ok": abs(mean - theory) <= 3 * err,
+        },
+        {
+            "name": "bounces: chi-square p-value of P(k)",
+            "value": p_value,
+            "target": ">= 0.003",
+            # 0.003 is the same chance to fail by bad luck as 3 sigma
+            "ok": p_value >= 0.003,
+        },
+    ]
+
+
+def statistical_error_study(sizes=(1000, 10000, 100000), dt=0.01, seed=0):
+
+    rows = []
+    for n in sizes:
+        res = run_simulation(n=n, dt=dt, seed=seed)
+        rows.append(
+            {
+                "n": n,
+                "mean r": np.mean(res["final_r"]),
+                "error r": np.std(res["final_r"]) / np.sqrt(n),
+                "mean R": np.mean(res["first_r"]),
+                "error R": np.std(res["first_r"]) / np.sqrt(n),
+                "|R - theory|": abs(np.mean(res["first_r"]) - mean_range()),
+            }
+        )
+    # the slope of log(error) against log(n), like scaling_exponent for the time
+    return rows, scaling_exponent(rows, "error r")
+
+
+def plot_statistical_error(rows, folder="figures"):
+
+    n = np.array([row["n"] for row in rows])
+    error_r = np.array([row["error r"] for row in rows])
+    error_first = np.array([row["error R"] for row in rows])
+    deviation = np.array([row["|R - theory|"] for row in rows])
+    fig = Figure(figsize=(6, 4.5))
+    ax = fig.add_subplot()
+    ax.loglog(n, error_r, "o-", label="std / sqrt(N), final r")
+    ax.loglog(n, error_first, "s-", label="std / sqrt(N), first landing R")
+    ax.loglog(n, deviation, "^", ms=8, label="|mean R - 3 pi / 4| (real error)")
+    ax.loglog(n, error_r[0] * np.sqrt(n[0] / n), "k--", label="slope -1/2")
+    ax.set_xlabel("number of particles N")
+    ax.set_ylabel("error of the mean distance")
+    ax.legend(fontsize=8)
+    folder = Path(folder)
+    folder.mkdir(parents=True, exist_ok=True)
+    filename = folder / "statistical_error.png"
+    fig.savefig(filename, dpi=150, bbox_inches="tight")
+    return filename
+
+#testing testing
