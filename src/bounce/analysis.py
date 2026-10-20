@@ -509,6 +509,7 @@ def plot_distance(results, folder):
 
 
 def plot_bounces(results, folder):
+    
     k = results["bounces"]
     n = len(k)
     p_stick = float(results["p_stick"])
@@ -550,3 +551,77 @@ def plot_results(results, folder="figures"):
     files.append(plot_bounces(results, folder))
     print(f'figures saved in {folder}')
     return files
+
+def check_bounces(n=10000, dt=0.01, p_stick=0.2, seed=0):
+
+    res = run_simulation(n=n, dt=dt, p_stick=p_stick, seed=seed)
+    k = res["bounces"]
+    mean = np.mean(k)
+    err = np.std(k) / np.sqrt(n)
+    theory = mean_bounces(p_stick)
+
+    # the largest k_max where n P(k_max - 1) is still >= 5
+    k_max = 1
+    while n * bounce_probability(k_max, p_stick) >= 5:
+        k_max += 1
+    observed = np.bincount(np.minimum(k, k_max), minlength=k_max + 1)
+    expected = n * bounce_probability(np.arange(k_max), p_stick)
+    # P(k >= k_max) = (1 - p_stick)^k_max (sum of the geometric series)
+    expected = np.append(expected, n * (1 - p_stick) ** k_max)
+    p_value = stats.chisquare(observed, expected).pvalue
+    return [
+        {
+            "name": "mean number of bounces",
+            "value": mean,
+            "target": f"{theory:.4f} +- {3 * err:.4f}",
+            "ok": abs(mean - theory) <= 3 * err,
+        },
+        {
+            "name": "bounces: chi-square p-value of P(k)",
+            "value": p_value,
+            "target": ">= 0.003",
+            # 0.003 is the same chance to fail by bad luck as 3 sigma
+            "ok": p_value >= 0.003,
+        },
+    ]
+
+
+def statistical_error_study(sizes=(1000, 10000, 100000), dt=0.01, seed=0):
+
+    rows = []
+    for n in sizes:
+        res = run_simulation(n=n, dt=dt, seed=seed)
+        rows.append(
+            {
+                "n": n,
+                "mean r": np.mean(res["final_r"]),
+                "error r": np.std(res["final_r"]) / np.sqrt(n),
+                "mean R": np.mean(res["first_r"]),
+                "error R": np.std(res["first_r"]) / np.sqrt(n),
+                "|R - theory|": abs(np.mean(res["first_r"]) - mean_range()),
+            }
+        )
+    # the slope of log(error) against log(n), like scaling_exponent for the time
+    return rows, scaling_exponent(rows, "error r")
+
+
+def plot_statistical_error(rows, folder="figures"):
+
+    n = np.array([row["n"] for row in rows])
+    error_r = np.array([row["error r"] for row in rows])
+    error_first = np.array([row["error R"] for row in rows])
+    deviation = np.array([row["|R - theory|"] for row in rows])
+    fig = Figure(figsize=(6, 4.5))
+    ax = fig.add_subplot()
+    ax.loglog(n, error_r, "o-", label="std / sqrt(N), final r")
+    ax.loglog(n, error_first, "s-", label="std / sqrt(N), first landing R")
+    ax.loglog(n, deviation, "^", ms=8, label="|mean R - 3 pi / 4| (real error)")
+    ax.loglog(n, error_r[0] * np.sqrt(n[0] / n), "k--", label="slope -1/2")
+    ax.set_xlabel("number of particles N")
+    ax.set_ylabel("error of the mean distance")
+    ax.legend(fontsize=8)
+    folder = Path(folder)
+    folder.mkdir(parents=True, exist_ok=True)
+    filename = folder / "statistical_error.png"
+    fig.savefig(filename, dpi=150, bbox_inches="tight")
+    return filename
