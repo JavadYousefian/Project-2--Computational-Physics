@@ -625,3 +625,5 @@ def plot_statistical_error(rows, folder="figures"):
     filename = folder / "statistical_error.png"
     fig.savefig(filename, dpi=150, bbox_inches="tight")
     return filename
+
+#testing testing
