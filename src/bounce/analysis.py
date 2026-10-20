@@ -440,7 +440,23 @@ def profile_run(n=10000, top=15, seed=0):
 
 
 # Plots (Kevin)
-# testing testing testing for git before i paste my codes
+# Written by kevin Geumhan
+
+from pathlib import Path
+from matplotlib.figure import Figure
+
+def _title(results):
+    #literally the title for the figures
+    n = len(results['final_r'])
+    return(
+        f'N = {n}, p_stick= {float(results['p_stick']):g }, '
+        f'p_spec = {float(results['p_specular']):g }, '
+        f'gamma = {float(results['gamma']):g }'
+    )
+
+
+
+
 
 
 def plot_results(results, folder="figures"):
