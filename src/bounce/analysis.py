@@ -445,7 +445,7 @@ def profile_run(n=10000, top=15, seed=0):
 from pathlib import Path
 from matplotlib.figure import Figure
 
-def _title(results):
+def title_text(results):
     #literally the title for the figures
     n = len(results['final_r'])
     return(
@@ -470,20 +470,83 @@ def plot_final_positions(results, folder):
     ax.set_aspect("equal")
     ax.set_xlabel("x")
     ax.set_ylabel("y")
-    ax.set_title(_title(results), fontsize=9)
+    ax.set_title(title_text(results), fontsize=9)
     ax.legend(loc="upper right")
     filename = Path(folder) / "final_positions.png"
     fig.savefig(filename, dpi=150, bbox_inches="tight")
     return filename
 
+def plot_distance(results, folder):
 
+    final_r = results["final_r"]
+    first_r = results["first_r"]
+    bins = np.linspace(0, np.percentile(final_r, 99), 60)
+    fig = Figure(figsize=(6, 4.5))
+    ax = fig.add_subplot()
+    ax.hist(final_r, bins=bins, density=True, alpha=0.6, label="final position")
+    ax.hist(
+        first_r,
+        bins=bins,
+        density=True,
+        histtype="step",
+        lw=1.5,
+        label="first landing",
+    )
+    mean_final = np.mean(final_r)
+    mean_first = np.mean(first_r)
+    ax.axvline(mean_final, color="C0", ls="--", label=f"mean final = {mean_final:.3f}")
+    ax.axvline(mean_first, color="C1", ls="--", label=f"mean first = {mean_first:.3f}")
+    if float(results["gamma"]) == 0:
+        theory = mean_range()
+        ax.axvline(theory, color="k", ls=":", label=f"theory <R> = {theory:.3f}")
+    ax.set_xlabel("distance r from the source")
+    ax.set_ylabel("probability density")
+    ax.set_title(title_text(results), fontsize=9)
+    ax.legend(fontsize=8)
+    filename = Path(folder) / "distance_r.png"
+    fig.savefig(filename, dpi=150, bbox_inches="tight")
+    return filename
+
+
+def plot_bounces(results, folder):
+    k = results["bounces"]
+    n = len(k)
+    p_stick = float(results["p_stick"])
+    counts = np.bincount(k)
+    k_values = np.arange(len(counts))
+    seen = counts > 0 
+    fig = Figure(figsize=(6, 4.5))
+    ax = fig.add_subplot()
+    ax.errorbar(
+        k_values[seen],
+        counts[seen] / n,
+        yerr=np.sqrt(counts[seen]) / n,
+        fmt="o",
+        ms=4,
+        capsize=2,
+        label="simulation",
+    )
+    theory = bounce_probability(k_values, p_stick)
+    ax.plot(k_values, theory, "k-", label="theory $(1 - p)^k p$")
+    ax.set_yscale("log")
+    ax.set_xlabel("number of bounces k")
+    ax.set_ylabel("P(k)")
+    ax.set_title(
+        title_text(results)
+        + f"\nmean k = {np.mean(k):.3f}, theory = {mean_bounces(p_stick):.3f}",
+        fontsize=9,
+    )
+    ax.legend()
+    filename = Path(folder) / "bounces.png"
+    fig.savefig(filename, dpi=150, bbox_inches="tight")
+    return filename
 
 
 def plot_results(results, folder="figures"):
     folder = Path(folder)
+    folder.mkdir(parents=True, exist_ok=True)
     files = [plot_final_positions(results, folder)]
-    #block 2 of the code
-    #block 3 of the code
-
+    files.append(plot_distance(results, folder))
+    files.append(plot_bounces(results, folder))
     print(f'figures saved in {folder}')
     return files
