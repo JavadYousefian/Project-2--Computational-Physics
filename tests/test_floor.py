@@ -1,4 +1,4 @@
-# Tests for floor.py
+"""Tests for floor.py."""
 
 import numpy as np
 import pytest
@@ -8,7 +8,7 @@ from bounce.particles import Particles
 
 
 def landed_particles(n=200):
-    # n particles on the floor that move down (v_z < 0), like just after landing
+    """N particles on the floor that move down (v_z < 0), like just after landing."""
     rng = np.random.default_rng(0)
     v = rng.normal(0, 1, (n, 3))
     v[:, 2] = -np.abs(v[:, 2])
@@ -16,7 +16,7 @@ def landed_particles(n=200):
 
 
 def test_wrong_p_stick():
-    # p_stick = 0 would mean the particles never stop
+    """P_stick = 0 would mean the particles never stop."""
     with pytest.raises(ValueError):
         Floor(0, 0.5)
     with pytest.raises(ValueError):
@@ -24,21 +24,23 @@ def test_wrong_p_stick():
 
 
 def test_wrong_p_specular():
-    # a probability must be between 0 and 1
+    """A probability must be between 0 and 1."""
     with pytest.raises(ValueError):
         Floor(0.5, 1.5)
 
 
 def test_find_landed():
-    # only particles with z < 0 landed (z = 0 is still on the floor)
+    """Only particles with z < 0 landed (z = 0 is still on the floor)"""
     floor = Floor(0.5, 0.5)
     landed = floor.find_landed(np.array([1.0, 0.0, -1e-12, -3.0]))
     assert list(landed) == [False, False, True, True]
 
 
 def test_landing_point():
-    # z goes from 1 to -2 in the step, so z = 0 at 1/3 of the step.
-    # The velocity is interpolated with the same fraction 1/3
+    """Z goes from 1 to -2 in the step, so z = 0 at 1/3 of the step.
+
+    The velocity is interpolated with the same fraction 1/3.
+    """
     floor = Floor(0.5, 0.5)
     r_old = np.array([[0.0, 0.0, 1.0]])
     r_new = np.array([[3.0, 1.0, -2.0]])
@@ -50,7 +52,7 @@ def test_landing_point():
 
 
 def test_all_stick():
-    # with p_stick = 1 every particle sticks at the first landing
+    """With p_stick = 1 every particle sticks at the first landing."""
     p, rng = landed_particles()
     ind = np.arange(len(p))
     Floor(1.0, 0.5).land(p, ind, p.r.copy(), p.v.copy(), rng)
@@ -60,7 +62,7 @@ def test_all_stick():
 
 
 def test_specular():
-    # specular bounce: v_z changes sign, v_x and v_y stay the same
+    """Specular bounce: v_z changes sign, v_x and v_y stay the same."""
     p, rng = landed_particles()
     v_in = p.v.copy()
     ind = np.arange(len(p))
@@ -71,7 +73,7 @@ def test_specular():
 
 
 def test_diffuse():
-    # diffuse bounce: same speed as before, new direction going up (v_z >= 0)
+    """Diffuse bounce: same speed as before, new direction going up (v_z >= 0)"""
     p, rng = landed_particles(2000)
     v_in = p.v.copy()
     ind = np.arange(len(p))
@@ -83,8 +85,10 @@ def test_diffuse():
 
 
 def test_specular_fraction():
-    # with p_specular = 0.5 about half of the bounces are specular. We can see
-    # them because only a specular bounce keeps v_x and v_y exactly the same.
+    """With p_specular = 0.5 about half of the bounces are specular.
+
+    We can see them because only a specular bounce keeps v_x and v_y exactly the same.
+    """
     p, rng = landed_particles(20000)
     v_in = p.v.copy()
     Floor(1e-12, 0.5).land(p, np.arange(len(p)), p.r.copy(), v_in.copy(), rng)
@@ -93,7 +97,7 @@ def test_specular_fraction():
 
 
 def test_first_landing_saved_once():
-    # the first landing must not change at the next landings
+    """The first landing must not change at the next landings."""
     p, rng = landed_particles(10)
     floor = Floor(1e-12, 1.0)
     ind = np.arange(10)
@@ -104,7 +108,7 @@ def test_first_landing_saved_once():
 
 
 def test_stick_probability():
-    # with many particles the fraction that sticks must be close to p_stick
+    """With many particles the fraction that sticks must be close to p_stick."""
     p, rng = landed_particles(20000)
     Floor(0.3, 0.5).land(p, np.arange(len(p)), p.r.copy(), p.v.copy(), rng)
     assert abs(np.mean(p.stuck) - 0.3) < 0.02

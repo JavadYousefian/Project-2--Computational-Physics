@@ -1,4 +1,8 @@
-# Theory formulas, validation checks, error studies and benchmark (Javad).
+"""Theory formulas, validation checks, error studies, benchmark and plots.
+
+The checks give back lists of dicts with the keys "name", "value", "target"
+(as text) and "ok" (True or False).
+"""
 
 import cProfile
 import io
@@ -16,70 +20,201 @@ from .simulation import run_simulation
 
 
 def range_no_drag(v, g=1.0):
-    # range of one flight without drag that starts and ends on the floor:
-    # R = v^2 sin(2 theta) / g. With v_h = v sin(theta) and v_z = v cos(theta)
-    # this is the same as 2 v_h v_z / g
+    """Range of one flight without drag that starts and ends on the floor.
+
+    R = v^2 sin(2 theta) / g. With v_h = v sin(theta) and v_z = v cos(theta)
+    this is the same as 2 v_h v_z / g.
+
+    Parameters
+    ----------
+    v : numpy.ndarray, shape (N, 3)
+        Start velocities.
+    g : float, optional
+        Gravity, by default 1.
+
+    Returns
+    -------
+    numpy.ndarray, shape (N,)
+        Range of every particle.
+    """
     v_h = np.hypot(v[:, 0], v[:, 1])
     return 2 * v_h * v[:, 2] / g
 
 
 def mean_range(sigma=1.0, g=1.0):
-    # mean range <R> = <v^2> <sin(2 theta)> / g. Speed and direction are
-    # independent, so we can average them alone:
-    #     Maxwell-Boltzmann:              <v^2> = 3 sigma^2
-    #     cosine law p = sin(2 theta):    <sin(2 theta)> = pi / 4
-    # so <R> = 3 pi sigma^2 / (4 g)
+    """Mean range <R> = <v^2> <sin(2 theta)> / g = 3 pi sigma^2 / (4 g).
+
+    Speed and direction are independent, so we can average them alone:
+    <v^2> = 3 sigma^2 for Maxwell-Boltzmann and <sin(2 theta)> = pi / 4 for the
+    cosine law p(theta) = sin(2 theta).
+
+    Parameters
+    ----------
+    sigma : float, optional
+        Width of the Maxwell-Boltzmann distribution, by default 1.
+    g : float, optional
+        Gravity, by default 1.
+
+    Returns
+    -------
+    float
+        Mean range.
+    """
     return 3 * np.pi * sigma**2 / (4 * g)
 
 
 def mean_range_squared(sigma=1.0, g=1.0):
-    # mean of R^2 = <v^4> <sin^2(2 theta)> / g^2
-    #     Maxwell-Boltzmann:   <v^4> = 15 sigma^4
-    #     cosine law:          <sin^2(2 theta)> = 2 / 3
-    # so <R^2> = 10 sigma^4 / g^2. This is the size of one step of the
-    # random walk with diffuse bounces
+    """Mean squared range <R^2> = <v^4> <sin^2(2 theta)> / g^2 = 10 sigma^4 / g^2.
+
+    For Maxwell-Boltzmann <v^4> = 15 sigma^4, and for the cosine law
+    <sin^2(2 theta)> = 2 / 3. This is the size of one step of the random walk
+    with diffuse bounces.
+
+    Parameters
+    ----------
+    sigma : float, optional
+        Width of the Maxwell-Boltzmann distribution, by default 1.
+    g : float, optional
+        Gravity, by default 1.
+
+    Returns
+    -------
+    float
+        Mean squared range.
+    """
     return 10 * sigma**4 / g**2
 
 
 def bounce_probability(k, p_stick):
-    # probability of exactly k bounces. Every landing is like a coin flip:
-    # k times "bounce" (1 - p_stick) and then one time "stick" (p_stick)
+    """Probability P(k) = (1 - p_stick)^k p_stick of exactly k bounces.
+
+    Every landing is like a coin flip: k times "bounce" and then one time
+    "stick".
+
+    Parameters
+    ----------
+    k : int or numpy.ndarray
+        Number of bounces.
+    p_stick : float
+        Probability to stick at a landing.
+
+    Returns
+    -------
+    float or numpy.ndarray
+        Probability of k bounces.
+    """
     return (1 - p_stick) ** np.asarray(k) * p_stick
 
 
 def mean_bounces(p_stick):
-    # mean of P(k): the sum of k (1 - p)^k p is (1 - p) / p
+    """Mean number of bounces (1 - p_stick) / p_stick, the mean of P(k).
+
+    Parameters
+    ----------
+    p_stick : float
+        Probability to stick at a landing.
+
+    Returns
+    -------
+    float
+        Mean number of bounces.
+    """
     return (1 - p_stick) / p_stick
 
 
 def terminal_velocity(m=1.0, g=1.0, gamma=1.0):
-    # with linear drag the particle stops speeding up when gamma v = m g,
-    # so the terminal velocity is v_t = m g / gamma
+    """Terminal velocity v_t = m g / gamma with linear drag.
+
+    The particle stops speeding up when the drag force gamma v is as big as
+    gravity m g.
+
+    Parameters
+    ----------
+    m : float, optional
+        Mass, by default 1.
+    g : float, optional
+        Gravity, by default 1.
+    gamma : float, optional
+        Drag coefficient, by default 1.
+
+    Returns
+    -------
+    float
+        Terminal velocity.
+    """
     return m * g / gamma
 
 
 def max_energy_loss(dt, g=1.0, m=1.0):
-    # Without drag the energy can only change at a landing, because of the
-    # linear interpolation. The straight line between the old and the new
-    # point is under the parabola, so at the interpolated time the particle is
-    # really a little above the floor: at most g dt^2 / 8 (in the middle of the
-    # step). We put it on the floor, so it loses at most m g * g dt^2 / 8.
+    """Largest energy loss m g^2 dt^2 / 8 at one landing, without drag.
+
+    Without drag the energy can only change at a landing, because of the
+    linear interpolation. The straight line between the old and the new point
+    is under the parabola, so at the interpolated time the particle is really a
+    little above the floor: at most g dt^2 / 8, in the middle of the step. We
+    put it on the floor, so it loses at most m g * g dt^2 / 8.
+
+    Parameters
+    ----------
+    dt : float
+        Time step.
+    g : float, optional
+        Gravity, by default 1.
+    m : float, optional
+        Mass, by default 1.
+
+    Returns
+    -------
+    float
+        Largest energy loss at one landing.
+    """
     return m * g**2 * dt**2 / 8
 
 
 def mean_energy_loss(dt, g=1.0, m=1.0):
-    # The height of the particle at the interpolated time is g s (dt - s) / 2,
-    # where s is the time in the step when it lands. s can be anywhere in the
-    # step with the same chance, and the mean of s (dt - s) is dt^2 / 6, so the
-    # mean energy loss at one landing is m g^2 dt^2 / 12
+    """Mean energy loss m g^2 dt^2 / 12 at one landing, without drag.
+
+    The height of the particle at the interpolated time is g s (dt - s) / 2,
+    where s is the time in the step when it lands. s can be anywhere in the
+    step with the same chance, and the mean of s (dt - s) is dt^2 / 6.
+
+    Parameters
+    ----------
+    dt : float
+        Time step.
+    g : float, optional
+        Gravity, by default 1.
+    m : float, optional
+        Mass, by default 1.
+
+    Returns
+    -------
+    float
+        Mean energy loss at one landing.
+    """
     return m * g**2 * dt**2 / 12
 
 
 def mean_range_error(dt, g=1.0):
-    # The interpolated landing is too early by (height / v_z), so the particle
-    # lands too short by v_h * height / v_z = tan(theta) g s (dt - s) / 2.
-    # The mean over s gives tan(theta) g dt^2 / 12, and for the cosine law the
-    # mean of tan(theta) is pi / 2, so the mean error is pi g dt^2 / 24
+    """Mean error pi g dt^2 / 24 of the first landing distance, without drag.
+
+    The interpolated landing is too early by (height / v_z), so the particle
+    lands too short by v_h * height / v_z = tan(theta) g s (dt - s) / 2. The
+    mean over s gives tan(theta) g dt^2 / 12, and for the cosine law the mean
+    of tan(theta) is pi / 2.
+
+    Parameters
+    ----------
+    dt : float
+        Time step.
+    g : float, optional
+        Gravity, by default 1.
+
+    Returns
+    -------
+    float
+        Mean error of the first landing distance.
+    """
     return np.pi * g * dt**2 / 24
 
 
@@ -90,7 +225,24 @@ def mean_range_error(dt, g=1.0):
 
 
 def check_range(n=20000, dt=0.01, seed=0):
-    # first landing without drag compared with R = v^2 sin(2 theta) / g
+    """Compare the first landing without drag with R = v^2 sin(2 theta) / g.
+
+    We check that the error of every particle is at most the distance of one
+    step, and that the mean range agrees with 3 pi sigma^2 / (4 g).
+
+    Parameters
+    ----------
+    n : int, optional
+        Number of particles.
+    dt : float, optional
+        Time step.
+    seed : int, optional
+        Seed of the random number generator.
+    Returns
+    -------
+    list of dict
+        The results of the checks.
+    """
     res = run_simulation(n=n, dt=dt, p_stick=1.0, seed=seed)
     error = np.abs(res["first_r"] - range_no_drag(res["v0"]))
     # we only see the landing at the end of a step, so the error can not be
@@ -120,9 +272,24 @@ def check_range(n=20000, dt=0.01, seed=0):
 
 
 def check_energy(n=2000, dt=0.01, seed=0):
-    # without drag the energy must stay the same, also after many bounces.
-    # Only the interpolation at a landing can change it: it can only go down,
-    # and by at most max_energy_loss(dt) at each landing
+    """Check that the energy without drag does not change, also after many bounces.
+
+    Only the interpolation at a landing can change it: it can only go down,
+    and by at most ``max_energy_loss(dt)`` at each landing.
+
+    Parameters
+    ----------
+    n : int, optional
+        Number of particles.
+    dt : float, optional
+        Time step.
+    seed : int, optional
+        Seed of the random number generator.
+    Returns
+    -------
+    list of dict
+        The results of the checks.
+    """
     res = run_simulation(n=n, dt=dt, p_stick=0.1, seed=seed)
     change = res["E_end"] - res["E0"]
     landings = res["bounces"] + 1
@@ -145,10 +312,29 @@ def check_energy(n=2000, dt=0.01, seed=0):
 
 
 def check_symmetry(n=10000, dt=0.01, gamma=0.2, seed=0):
-    # The source is the same in all directions (phi is uniform), so the final
-    # positions must be symmetric around the source: mean x = 0, mean y = 0,
-    # and the angle phi of the final position must be uniform.
-    # We use drag here, so this also tests the runs with drag.
+    """Check that the final positions are symmetric around the source.
+
+    The source is the same in all directions (phi is uniform), so the mean x
+    and mean y must be 0, and the angle phi of the final position must be
+    uniform (Kolmogorov-Smirnov test). We use drag here, so this also tests the
+    runs with drag.
+
+    Parameters
+    ----------
+    n : int, optional
+        Number of particles.
+    dt : float, optional
+        Time step.
+    gamma : float, optional
+        Drag coefficient, by default 0.2.
+    seed : int, optional
+        Seed of the random number generator.
+
+    Returns
+    -------
+    list of dict
+        The results of the checks.
+    """
     res = run_simulation(n=n, dt=dt, gamma=gamma, seed=seed)
     checks = []
     for i, name in enumerate(["x", "y"]):
@@ -182,10 +368,26 @@ def check_symmetry(n=10000, dt=0.01, gamma=0.2, seed=0):
 
 
 def check_random_walk(n=10000, dt=0.01, seed=0):
-    # With only diffuse bounces and no drag every flight goes in a new random
-    # direction, like a random walk. The steps are independent with mean 0, so
-    # <r^2> = (number of flights) <R^2>, and after k bounces there are k + 1
-    # flights. So r^2 / (k + 1) must have the mean <R^2> = 10 sigma^4 / g^2
+    """Check that <r^2> grows linearly with the number of flights.
+
+    With only diffuse bounces and no drag every flight goes in a new random
+    direction, like a random walk. The steps are independent with mean 0, so
+    <r^2> = (k + 1) <R^2> after k bounces, and r^2 / (k + 1) must have the mean
+    <R^2> = 10 sigma^4 / g^2.
+
+    Parameters
+    ----------
+    n : int, optional
+        Number of particles.
+    dt : float, optional
+        Time step.
+    seed : int, optional
+        Seed of the random number generator.
+    Returns
+    -------
+    list of dict
+        The results of the checks.
+    """
     res = run_simulation(n=n, dt=dt, p_specular=0.0, seed=seed)
     values = res["final_r"] ** 2 / (res["bounces"] + 1)
     mean = np.mean(values)
@@ -202,9 +404,24 @@ def check_random_walk(n=10000, dt=0.01, seed=0):
 
 
 def check_specular(n=10000, dt=0.01, seed=0):
-    # With only specular bounces and no drag the particle keeps its direction
-    # and every flight is the same, so it stops at r = (k + 1) R in the same
-    # direction as it started
+    """Check that specular bounces without drag keep the direction.
+
+    All flights of a particle are then the same, so it stops at r = (k + 1) R
+    in the same direction as it started.
+
+    Parameters
+    ----------
+    n : int, optional
+        Number of particles.
+    dt : float, optional
+        Time step.
+    seed : int, optional
+        Seed of the random number generator.
+    Returns
+    -------
+    list of dict
+        The results of the checks.
+    """
     res = run_simulation(n=n, dt=dt, p_specular=1.0, seed=seed)
     # a few very flat particles never leave the source, we skip them
     moved = res["final_r"] > 0
@@ -235,10 +452,27 @@ def check_specular(n=10000, dt=0.01, seed=0):
 
 
 def check_terminal_velocity(gamma=0.5, n=100, dt=0.1, seed=0):
-    # With drag a falling particle stops speeding up when the drag force
-    # gamma v is as big as gravity m g, so v_z -> -v_t = -m g / gamma.
-    # We let the particles fly for the long time 40 m / gamma without the
-    # floor (exp(-40) is tiny, so they must be at v_t by then)
+    """Check that a long fall with drag reaches v_z = -v_t = -m g / gamma.
+
+    The particles fly for the long time 40 m / gamma without the floor, and
+    exp(-40) is tiny, so they must be at v_t by then.
+
+    Parameters
+    ----------
+    gamma : float, optional
+        Drag coefficient, by default 0.5.
+    n : int, optional
+        Number of particles.
+    dt : float, optional
+        Time step.
+    seed : int, optional
+        Seed of the random number generator.
+
+    Returns
+    -------
+    list of dict
+        The results of the checks.
+    """
     p = Particles.from_source(n, rng=seed, gamma=gamma)
     n_steps = int(round(40 / gamma / dt))
     for i in range(n_steps):
@@ -256,7 +490,22 @@ def check_terminal_velocity(gamma=0.5, n=100, dt=0.1, seed=0):
 
 
 def run_all_checks(n=10000, dt=0.01, seed=0):
-    # run all the checks, n is the number of particles for the bigger ones
+    """Run all validation checks.
+
+    Parameters
+    ----------
+    n : int, optional
+        Number of particles for the bigger checks.
+    dt : float, optional
+        Time step.
+    seed : int, optional
+        Seed of the random number generator.
+
+    Returns
+    -------
+    list of dict
+        The results of the checks.
+    """
     checks = []
     checks += check_range(2 * n, dt, seed)
     checks += check_energy(n // 5, dt, seed)
@@ -272,11 +521,29 @@ def run_all_checks(n=10000, dt=0.01, seed=0):
 
 
 def roundoff_study(steps_list=(10, 100, 1000, 10000), t_total=2.0, n=1000, seed=0):
-    # Finite precision: the computer keeps only about 16 digits of a number, so
-    # every calculation has a tiny round-off error. Without drag RK45 is exact
-    # for the parabola, so if the energy changes in a flight without the floor
-    # it can only come from round-off. We fly the same time t_total with more
-    # and more steps and look how the energy error grows.
+    """Energy error from finite precision in a flight without drag.
+
+    The computer keeps only about 16 digits of a number, so every calculation
+    has a tiny round-off error. Without drag RK45 is exact for the parabola, so
+    if the energy changes in a flight without the floor, it can only come from
+    round-off. We fly the same time with more and more steps.
+
+    Parameters
+    ----------
+    steps_list : tuple of int, optional
+        Numbers of steps.
+    t_total : float, optional
+        Flight time.
+    n : int, optional
+        Number of particles.
+    seed : int, optional
+        Seed of the random number generator.
+
+    Returns
+    -------
+    list of dict
+        Number of steps, dt and the max and mean relative energy error.
+    """
     rows = []
     for steps in steps_list:
         p = Particles.from_source(n, rng=seed)
@@ -298,12 +565,31 @@ def roundoff_study(steps_list=(10, 100, 1000, 10000), t_total=2.0, n=1000, seed=
 def integration_study(
     rtols=(1e-3, 1e-4, 1e-6, 1e-8, 1e-10), gamma=0.5, t_total=5.0, dt=0.01, seed=0
 ):
-    # Error of solve_ivp with drag, compared with the exact solution.
-    # "1 call": one solve_ivp call for the whole time, so the solver chooses
-    #           its own steps from rtol and the error should follow rtol
-    # "steps":  one call per dt like in our simulation. dt is so small that
-    #           the error is tiny for every rtol
-    # (we use atol = rtol / 1000)
+    """Error of ``solve_ivp`` with drag, compared with the exact solution.
+
+    "1 call": one ``solve_ivp`` call for the whole time, so the solver chooses
+    its own steps and the error follows rtol. "steps": one call per dt like in
+    our simulation, then dt is so small that the error is tiny for every rtol.
+    We use atol = rtol / 1000.
+
+    Parameters
+    ----------
+    rtols : tuple of float, optional
+        Relative tolerances.
+    gamma : float, optional
+        Drag coefficient.
+    t_total : float, optional
+        Flight time (no floor).
+    dt : float, optional
+        Time step for the "steps" case.
+    seed : int, optional
+        Seed of the random number generator.
+
+    Returns
+    -------
+    list of dict
+        Max position error and number of rhs calls for both cases.
+    """
     start = Particles.from_source(1000, rng=seed, gamma=gamma)
     r_exact, _ = exact_flight(start.r, start.v, t_total, gamma=gamma)
     y0 = np.concatenate((start.r.ravel(), start.v.ravel()))
@@ -329,11 +615,31 @@ def integration_study(
 
 
 def timestep_study(dts=(0.04, 0.02, 0.01, 0.005, 0.0025), n=10000, seed=0):
-    # Error from the time step: we only find the landing at the end of a step,
-    # with linear interpolation. We use p_stick = 1 and no drag, so every
-    # particle lands once and the exact answer is R = v^2 sin(2 theta) / g.
-    # Both errors should go like dt^2 (order 2), see mean_range_error and
-    # mean_energy_loss for the theory
+    """Error from the time step: first landing distance and energy loss.
+
+    We only find the landing at the end of a step, with linear interpolation.
+    We use p_stick = 1 and no drag, so every particle lands once and the exact
+    answer is R = v^2 sin(2 theta) / g. Both errors should go like dt^2, see
+    ``mean_range_error`` and ``mean_energy_loss`` for the theory.
+
+    Parameters
+    ----------
+    dts : tuple of float, optional
+        Time steps.
+    n : int, optional
+        Number of particles.
+    seed : int, optional
+        Seed of the random number generator.
+
+    Returns
+    -------
+    rows : list of dict
+        Measured and theory errors for every dt.
+    order_range : float
+        Fitted order p in error ~ dt^p for the first landing.
+    order_energy : float
+        Fitted order p for the energy loss.
+    """
     rows = []
     for dt in dts:
         res = run_simulation(n=n, dt=dt, p_stick=1.0, seed=seed)
@@ -357,7 +663,13 @@ def timestep_study(dts=(0.04, 0.02, 0.01, 0.005, 0.0025), n=10000, seed=0):
 
 
 def print_table(rows):
-    # print a list of dicts as a simple table
+    """Print a list of dicts as a simple table.
+
+    Parameters
+    ----------
+    rows : list of dict
+        Rows of the table, all with the same keys.
+    """
     keys = list(rows[0].keys())
     width = max(12, max(len(key) for key in keys) + 1)
     print("".join(f"{key:>{width}}" for key in keys))
@@ -376,9 +688,27 @@ def print_table(rows):
 
 
 def benchmark_step(sizes=(1000, 10000, 100000), dt=0.01, repeats=20, seed=0):
-    # Time of one move() when all n particles are flying. The particles do not
-    # interact, so the work should grow like n (linear). We repeat it and keep
-    # the best time, because other programs on the computer can slow it down
+    """Measure the time of one ``move()`` when all n particles are flying.
+
+    The particles do not interact, so the work should grow like n. We repeat
+    it and keep the best time, because other programs can slow it down.
+
+    Parameters
+    ----------
+    sizes : tuple of int, optional
+        Numbers of particles.
+    dt : float, optional
+        Time step.
+    repeats : int, optional
+        How many times we measure.
+    seed : int, optional
+        Seed of the random number generator.
+
+    Returns
+    -------
+    list of dict
+        Time per step and per particle for every n.
+    """
     rows = []
     for n in sizes:
         p = Particles.from_source(n, rng=seed)
@@ -393,9 +723,23 @@ def benchmark_step(sizes=(1000, 10000, 100000), dt=0.01, repeats=20, seed=0):
 
 
 def benchmark_run(sizes=(1000, 10000, 100000), seed=0):
-    # Time of a full simulation with the default settings. The number of steps
-    # is set by the slowest particles (the last ones that stick), and in most
-    # of these steps only a few particles are still flying
+    """Measure the time of full simulations with the default settings.
+
+    The number of steps depends on the last particles that stick, and in most
+    of these steps only a few particles are still flying.
+
+    Parameters
+    ----------
+    sizes : tuple of int, optional
+        Numbers of particles.
+    seed : int, optional
+        Seed of the random number generator.
+
+    Returns
+    -------
+    list of dict
+        Time, number of steps, particle-steps and time per particle-step.
+    """
     rows = []
     for n in sizes:
         t0 = time.perf_counter()
@@ -414,15 +758,44 @@ def benchmark_run(sizes=(1000, 10000, 100000), seed=0):
 
 
 def scaling_exponent(rows, key):
-    # fit time ~ n^a, so log(time) = a log(n) + b, and give back a
+    """Fit y ~ n^a, so log(y) = a log(n) + b, and give back a.
+
+    Parameters
+    ----------
+    rows : list of dict
+        Rows with the key "n" and the key that we fit.
+    key : str
+        Key of the value that we fit.
+
+    Returns
+    -------
+    float
+        The exponent a.
+    """
     n = [row["n"] for row in rows]
     t = [row[key] for row in rows]
     return np.polyfit(np.log(n), np.log(t), 1)[0]
 
 
 def profile_run(n=10000, top=15, seed=0):
-    # run one simulation with cProfile, which measures how much time is spent
-    # in every function, and give back the report of the slowest ones
+    """Run one simulation with cProfile.
+
+    cProfile measures how much time is spent in every function.
+
+    Parameters
+    ----------
+    n : int, optional
+        Number of particles.
+    top : int, optional
+        How many functions we show.
+    seed : int, optional
+        Seed of the random number generator.
+
+    Returns
+    -------
+    str
+        The cProfile report, sorted by cumulative time.
+    """
     profiler = cProfile.Profile()
     profiler.enable()
     run_simulation(n=n, seed=seed)
@@ -441,7 +814,18 @@ from matplotlib.figure import Figure
 
 
 def title_text(results):
-    # literally the title for the figures
+    """Title for the figures with the settings of the run.
+
+    Parameters
+    ----------
+    results : dict
+        Results from ``run_simulation``.
+
+    Returns
+    -------
+    str
+        Title text.
+    """
     n = len(results["final_r"])
     return (
         f"N = {n}, p_stick = {float(results['p_stick']):g}, "
@@ -451,7 +835,20 @@ def title_text(results):
 
 
 def plot_final_positions(results, folder):
+    """Plot where the particles stopped on the floor (seen from above).
 
+    Parameters
+    ----------
+    results : dict
+        Results from ``run_simulation``.
+    folder : str or pathlib.Path
+        Folder for the figure.
+
+    Returns
+    -------
+    pathlib.Path
+        Name of the figure file.
+    """
     pos = results["final_positions"]
     n = len(pos)
     fig = Figure(figsize=(5.5, 5))
@@ -474,7 +871,22 @@ def plot_final_positions(results, folder):
 
 
 def plot_distance(results, folder):
+    """Plot the histograms of the final distance and of the first landing.
 
+    Without drag we also show the theory <R> = 3 pi sigma^2 / (4 g).
+
+    Parameters
+    ----------
+    results : dict
+        Results from ``run_simulation``.
+    folder : str or pathlib.Path
+        Folder for the figure.
+
+    Returns
+    -------
+    pathlib.Path
+        Name of the figure file.
+    """
     final_r = results["final_r"]
     first_r = results["first_r"]
     bins = np.linspace(0, np.percentile(final_r, 99), 60)
@@ -506,7 +918,22 @@ def plot_distance(results, folder):
 
 
 def plot_bounces(results, folder):
+    """Plot the number of bounces with the theory P(k) = (1 - p)^k p.
 
+    The error bars are sqrt(count) / n.
+
+    Parameters
+    ----------
+    results : dict
+        Results from ``run_simulation``.
+    folder : str or pathlib.Path
+        Folder for the figure.
+
+    Returns
+    -------
+    pathlib.Path
+        Name of the figure file.
+    """
     k = results["bounces"]
     n = len(k)
     p_stick = float(results["p_stick"])
@@ -541,6 +968,20 @@ def plot_bounces(results, folder):
 
 
 def plot_results(results, folder="figures"):
+    """Make the 3 figures of one run: final positions, distance and bounces.
+
+    Parameters
+    ----------
+    results : dict
+        Results from ``run_simulation``.
+    folder : str or pathlib.Path, optional
+        Folder for the figures, by default "figures".
+
+    Returns
+    -------
+    list of pathlib.Path
+        Names of the figure files.
+    """
     folder = Path(folder)
     folder.mkdir(parents=True, exist_ok=True)
     files = [plot_final_positions(results, folder)]
@@ -551,7 +992,27 @@ def plot_results(results, folder="figures"):
 
 
 def check_bounces(n=10000, dt=0.01, p_stick=0.2, seed=0):
+    """Check that the number of bounces follows P(k) = (1 - p_stick)^k p_stick.
 
+    We compare the mean with (1 - p_stick) / p_stick, and the whole histogram
+    with P(k) with a chi-square test.
+
+    Parameters
+    ----------
+    n : int, optional
+        Number of particles.
+    dt : float, optional
+        Time step.
+    p_stick : float, optional
+        Probability to stick at a landing.
+    seed : int, optional
+        Seed of the random number generator.
+
+    Returns
+    -------
+    list of dict
+        The results of the checks.
+    """
     res = run_simulation(n=n, dt=dt, p_stick=p_stick, seed=seed)
     k = res["bounces"]
     mean = np.mean(k)
@@ -585,7 +1046,27 @@ def check_bounces(n=10000, dt=0.01, p_stick=0.2, seed=0):
 
 
 def statistical_error_study(sizes=(1000, 10000, 100000), dt=0.01, seed=0):
+    """Statistical error of the mean distance for different numbers of particles.
 
+    The mean is an average over N random particles, so its error should go
+    like std / sqrt(N).
+
+    Parameters
+    ----------
+    sizes : tuple of int, optional
+        Numbers of particles.
+    dt : float, optional
+        Time step.
+    seed : int, optional
+        Seed of the random number generator.
+
+    Returns
+    -------
+    rows : list of dict
+        Mean and error of the final and first landing distance for every N.
+    slope : float
+        Fitted slope of log(error) against log(N), it should be -1/2.
+    """
     rows = []
     for n in sizes:
         res = run_simulation(n=n, dt=dt, seed=seed)
@@ -604,7 +1085,20 @@ def statistical_error_study(sizes=(1000, 10000, 100000), dt=0.01, seed=0):
 
 
 def plot_statistical_error(rows, folder="figures"):
+    """Plot the statistical error against the number of particles.
 
+    Parameters
+    ----------
+    rows : list of dict
+        Rows from ``statistical_error_study``.
+    folder : str or pathlib.Path, optional
+        Folder for the figure, by default "figures".
+
+    Returns
+    -------
+    pathlib.Path
+        Name of the figure file.
+    """
     n = np.array([row["n"] for row in rows])
     error_r = np.array([row["error r"] for row in rows])
     error_first = np.array([row["error R"] for row in rows])

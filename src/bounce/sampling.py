@@ -1,3 +1,9 @@
+"""Random sampling of the start speeds and directions of the particles.
+
+The speeds come from the Maxwell-Boltzmann distribution with rejection
+sampling, and the directions from the cosine law with the inverse CDF method.
+"""
+
 import numpy as np
 import random
 

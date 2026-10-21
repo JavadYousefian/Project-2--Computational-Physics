@@ -1,9 +1,14 @@
-# Command line program. After "pip install -e ." we can type in the terminal:
-#     bounce run          run one simulation and save the results
-#     bounce validate     compare the simulation with the theory
-#     bounce validate --studies    and also run the error studies
-#     bounce benchmark    measure the time for N = 1000, 10000, 100000
-#     bounce benchmark --profile   and also run cProfile
+"""Command line program ``bounce``.
+
+After ``pip install -e .`` we can type in the terminal::
+
+    bounce run                   run one simulation and save the results
+    bounce run --plot            and also make the figures
+    bounce validate              compare the simulation with the theory
+    bounce validate --studies    and also run the error studies
+    bounce benchmark             measure the time for N = 1000, 10000, 100000
+    bounce benchmark --profile   and also run cProfile
+"""
 
 import argparse
 import time
@@ -15,7 +20,14 @@ from .simulation import run_simulation, save_results
 
 
 def make_parser():
-    # all the options we can give on the command line, with their default values
+    """Make the parser for the command line options.
+
+    Returns
+    -------
+    argparse.ArgumentParser
+        Parser with the commands run, validate and benchmark and their default
+        values.
+    """
     parser = argparse.ArgumentParser(
         prog="bounce", description="Particles bouncing and sticking on a floor."
     )
@@ -49,8 +61,20 @@ def make_parser():
 
 
 def do_run(args):
-    # run one simulation with the options from the command line, print a short
-    # summary and save everything in a .npz file
+    """Run one simulation, print a short summary and save the results.
+
+    With --plot it also makes the figures.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Options from the command line.
+
+    Returns
+    -------
+    int
+        Exit code, 0 if everything worked.
+    """
     t0 = time.perf_counter()
     results = run_simulation(
         n=args.n,
@@ -78,8 +102,21 @@ def do_run(args):
 
 
 def do_validate(args):
-    # run all checks and print one line for each check. We give back 1 if a
-    # check failed (and 0 if all passed), so it can also be used in scripts
+    """Run all validation checks and print one line for every check.
+
+    With --studies it also runs the error studies. The exit code is 1 if a
+    check failed, so it can also be used in scripts.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Options from the command line.
+
+    Returns
+    -------
+    int
+        Exit code, 0 if everything worked.
+    """
     checks = analysis.run_all_checks(args.n, args.dt, args.seed)
     n_failed = 0
     for check in checks:
@@ -110,8 +147,20 @@ def do_validate(args):
 
 
 def do_benchmark(args):
-    # measure the time for different numbers of particles, and with --profile
-    # run cProfile to see which functions are the slowest
+    """Measure the time for different numbers of particles.
+
+    With --profile it also runs cProfile to find the slowest functions.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Options from the command line.
+
+    Returns
+    -------
+    int
+        Exit code, 0 if everything worked.
+    """
     print("One step with all particles flying")
     rows = analysis.benchmark_step(args.sizes)
     analysis.print_table(rows)
@@ -129,7 +178,18 @@ def do_benchmark(args):
 
 
 def main(argv=None):
-    # this function runs when we type "bounce" in the terminal
+    """Start the program, this runs when we type ``bounce`` in the terminal.
+
+    Parameters
+    ----------
+    argv : list of str, optional
+        Command line arguments. If None, the real command line is used.
+
+    Returns
+    -------
+    int
+        Exit code, 0 if everything worked.
+    """
     args = make_parser().parse_args(argv)
     if args.command == "run":
         return do_run(args)

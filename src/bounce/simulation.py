@@ -1,11 +1,15 @@
-# Main loop of the simulation, like the pseudocode in our plan:
-#   make the particles at the source
-#   while some particles are still flying:
-#       save the old positions and velocities
-#       move all flying particles one time step dt
-#       the particles with z < 0 landed during this step
-#       find where and how fast they hit the floor (linear interpolation)
-#       each landed particle sticks or bounces
+"""Main loop of the simulation and saving of the results.
+
+The main loop follows the pseudocode of our plan::
+
+    make the particles at the source
+    while some particles are still flying:
+        save the old positions and velocities
+        move all flying particles one time step dt
+        the particles with z < 0 landed during this step
+        find where and how fast they hit the floor (linear interpolation)
+        each landed particle sticks or bounces
+"""
 
 import numpy as np
 
@@ -27,19 +31,53 @@ def run_simulation(
     max_steps=10_000_000,
     particles=None,
 ):
-    # n          : number of particles
-    # dt         : time step
-    # gamma      : drag coefficient (0 = no air)
-    # p_stick    : probability to stick at a landing
-    # p_specular : probability that a bounce is specular
-    # sigma      : width of the Maxwell-Boltzmann distribution (temperature)
-    # seed       : seed of the random number generator, same seed = same result
-    # method     : "solve_ivp" or "exact", how the particles fly
-    # rtol, atol : tolerances of solve_ivp
-    # max_steps  : stop with an error if the loop takes too long
-    # particles  : start from these particles instead of the source (for tests)
-    #
-    # gives back a dict with the results (see the end of the function)
+    """Run the simulation until all particles are stuck on the floor.
+
+    Parameters
+    ----------
+    n : int, optional
+        Number of particles.
+    dt : float, optional
+        Time step.
+    gamma : float, optional
+        Drag coefficient (0 = no air).
+    p_stick : float, optional
+        Probability to stick at a landing.
+    p_specular : float, optional
+        Probability that a bounce is specular.
+    sigma : float, optional
+        Width of the Maxwell-Boltzmann distribution (the temperature).
+    seed : int or None, optional
+        Seed of the random number generator, the same seed gives the same
+        result.
+    method : {"solve_ivp", "exact"}, optional
+        How the particles fly, see ``Particles.move``.
+    rtol : float, optional
+        Relative tolerance of ``solve_ivp``.
+    atol : float, optional
+        Absolute tolerance of ``solve_ivp``.
+    max_steps : int, optional
+        Stop with an error if the loop needs more steps than this.
+    particles : Particles, optional
+        Start from these particles instead of the source (for the tests).
+
+    Returns
+    -------
+    dict
+        The results: ``final_positions`` (where each particle stopped),
+        ``final_r`` (distance from the source), ``bounces`` (number of bounces
+        k), ``first_landing`` and ``first_r`` (the first landing), ``v0`` and
+        ``E0`` (start velocities and energies), ``E_end`` (energy at the last
+        landing), ``n_steps``, ``particle_steps`` (sum of the flying particles
+        over all steps), ``n_eval``, ``p_stick``, ``p_specular`` and ``gamma``.
+
+    Raises
+    ------
+    ValueError
+        If dt is not positive or a probability is wrong.
+    RuntimeError
+        If the particles are still flying after max_steps steps.
+    """
     if dt <= 0:
         raise ValueError("dt must be positive")
     rng = np.random.default_rng(seed)
@@ -96,12 +134,33 @@ def run_simulation(
 
 
 def save_results(results, filename):
-    # save the results dict in a .npz file (numpy's file format for arrays)
+    """Save the results in a .npz file (the numpy file format for arrays).
+
+    Parameters
+    ----------
+    results : dict
+        Results from ``run_simulation``.
+    filename : str or pathlib.Path
+        Name of the file.
+    """
     np.savez(filename, **results)
 
 
 def load_results(filename):
-    # load the results again from the .npz file. Single numbers like n_steps
-    # come back as numpy arrays with one value, use int(...) to get a number
+    """Load the results from a .npz file that was made by ``save_results``.
+
+    Single numbers like n_steps come back as numpy arrays with one value, use
+    int(...) to get a normal number.
+
+    Parameters
+    ----------
+    filename : str or pathlib.Path
+        Name of the file.
+
+    Returns
+    -------
+    dict
+        The results.
+    """
     with np.load(filename) as data:
         return {key: data[key] for key in data.files}
