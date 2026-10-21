@@ -1,15 +1,3 @@
-"""Command line program ``bounce``.
-
-After ``pip install -e .`` we can type in the terminal::
-
-    bounce run                   run one simulation and save the results
-    bounce run --plot            and also make the figures
-    bounce validate              compare the simulation with the theory
-    bounce validate --studies    and also run the error studies
-    bounce benchmark             measure the time for N = 1000, 10000, 100000
-    bounce benchmark --profile   and also run cProfile
-"""
-
 import argparse
 import time
 

@@ -1,9 +1,3 @@
-"""Theory formulas, validation checks, error studies, benchmark and plots.
-
-The checks give back lists of dicts with the keys "name", "value", "target"
-(as text) and "ok" (True or False).
-"""
-
 import cProfile
 import io
 import pstats

@@ -1,5 +1,3 @@
-"""Tests for the plots, the P(k) check and the statistical error."""
-
 from bounce import analysis
 from bounce.analysis import plot_results
 from bounce.simulation import run_simulation

@@ -1,10 +1,3 @@
-"""Floor class: the floor z = 0.
-
-After every time step the floor finds the particles that went under it,
-puts them back on the floor, and then every landed particle sticks or
-bounces (specular or diffuse).
-"""
-
 import numpy as np
 
 from .sampling import cosine_directions

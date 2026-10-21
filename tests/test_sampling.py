@@ -1,5 +1,3 @@
-"""Tests for sampling.py."""
-
 import numpy as np
 import pytest
 

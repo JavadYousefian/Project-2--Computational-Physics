@@ -1,5 +1,3 @@
-"""Tests for the theory formulas and the checks in analysis.py."""
-
 import numpy as np
 from scipy.integrate import quad
 

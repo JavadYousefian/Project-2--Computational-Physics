@@ -1,0 +1,39 @@
+One step with all particles flying
+             n     time/step time/particle
+          1000       0.00017       1.7e-07
+         10000       0.00111      1.11e-07
+        100000        0.0206      2.06e-07
+time/step ~ N^1.04
+
+Full simulation
+                  n               time              steps     particle steps time/particle step
+               1000               1.57              13799            1155702           1.36e-06
+              10000               5.64              10923           10573095           5.34e-07
+             100000               36.2              24039          106872976           3.39e-07
+time ~ N^0.68
+
+cProfile with N = 10000
+         1936331 function calls in 5.356 seconds
+
+   Ordered by: cumulative time
+   List reduced from 101 to 15 due to restriction <15>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    0.671    0.671    5.356    5.356 /Users/javadyousefian/Desktop/Courses/Computational Physics/Project-2--Computational-Physics/src/bounce/simulation.py:16(run_simulation)
+    10923    0.415    0.000    3.981    0.000 /Users/javadyousefian/Desktop/Courses/Computational Physics/Project-2--Computational-Physics/src/bounce/particles.py:124(move)
+    10923    0.035    0.000    3.314    0.000 /opt/anaconda3/lib/python3.12/site-packages/scipy/integrate/_ivp/ivp.py:159(solve_ivp)
+    10923    0.007    0.000    2.904    0.000 /opt/anaconda3/lib/python3.12/site-packages/scipy/integrate/_ivp/base.py:175(step)
+    10923    0.165    0.000    2.897    0.000 /opt/anaconda3/lib/python3.12/site-packages/scipy/integrate/_ivp/rk.py:111(_step_impl)
+    10923    2.144    0.000    2.514    0.000 /opt/anaconda3/lib/python3.12/site-packages/scipy/integrate/_ivp/rk.py:14(rk_step)
+    76461    0.015    0.000    0.445    0.000 /opt/anaconda3/lib/python3.12/site-packages/scipy/integrate/_ivp/base.py:152(fun)
+    76461    0.031    0.000    0.430    0.000 /opt/anaconda3/lib/python3.12/site-packages/scipy/integrate/_ivp/base.py:22(fun_wrapped)
+    76461    0.382    0.000    0.391    0.000 /Users/javadyousefian/Desktop/Courses/Computational Physics/Project-2--Computational-Physics/src/bounce/particles.py:111(rhs)
+    32772    0.023    0.000    0.387    0.000 /opt/anaconda3/lib/python3.12/site-packages/numpy/core/fromnumeric.py:71(_wrapreduction)
+    48537    0.363    0.000    0.363    0.000 {method 'reduce' of 'numpy.ufunc' objects}
+    10924    0.014    0.000    0.358    0.000 /Users/javadyousefian/Desktop/Courses/Computational Physics/Project-2--Computational-Physics/src/bounce/particles.py:97(n_flying)
+    10926    0.007    0.000    0.343    0.000 /opt/anaconda3/lib/python3.12/site-packages/numpy/core/fromnumeric.py:2177(sum)
+    10923    0.019    0.000    0.289    0.000 /opt/anaconda3/lib/python3.12/site-packages/scipy/integrate/_ivp/rk.py:85(__init__)
+    10923    0.030    0.000    0.215    0.000 /opt/anaconda3/lib/python3.12/site-packages/scipy/integrate/_ivp/rk.py:108(_estimate_error_norm)
+
+
+

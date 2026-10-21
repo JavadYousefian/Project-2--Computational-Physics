@@ -1,5 +1,3 @@
-"""Tests for particles.py, with things we can calculate by hand."""
-
 import numpy as np
 import pytest
 

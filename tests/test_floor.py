@@ -1,5 +1,3 @@
-"""Tests for floor.py."""
-
 import numpy as np
 import pytest
 

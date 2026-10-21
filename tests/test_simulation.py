@@ -1,5 +1,3 @@
-"""Tests for simulation.py."""
-
 import numpy as np
 import pytest
 

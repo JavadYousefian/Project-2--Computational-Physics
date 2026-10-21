@@ -1,5 +1,3 @@
-"""Tests for the command line program."""
-
 from bounce.cli import main
 from bounce.simulation import load_results
 
