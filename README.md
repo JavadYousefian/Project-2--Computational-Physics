@@ -6,8 +6,18 @@ gravity and air drag, and stick or bounce (specular or diffuse) on the floor
 
 ## Install
 
+Get the code and install the package with its dependencies:
+
 ```bash
+git clone https://github.com/JavadYousefian/Project-2--Computational-Physics.git
+cd Project-2--Computational-Physics
 pip install -e ".[dev]"
+```
+
+Or install only the package directly from GitHub:
+
+```bash
+pip install git+https://github.com/JavadYousefian/Project-2--Computational-Physics.git
 ```
 
 ## Use
@@ -36,12 +46,25 @@ results = load_results("results.npz")
 - `src/bounce/simulation.py`: the main loop `run_simulation`
 - `src/bounce/analysis.py`: theory, checks, error studies, benchmark, plots
 - `src/bounce/cli.py`: the `bounce` command
+- `tests/`: the tests for all files
+- `make_figures.py`: makes all figures of the report
 
 ## Tests
 
 ```bash
 pytest
 ```
+
+## Report and figures
+
+The report is in the `Report` folder. The figures in the report can be made
+again with:
+
+```bash
+python make_figures.py
+```
+
+The figures are saved in the folder `figures`.
 
 ## Authors
 
